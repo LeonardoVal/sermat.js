@@ -1,0 +1,11 @@
+﻿bower_components/
+docs/docker/
+lib/
+node_modules/
+src/
+tests/
+tools/
+Gruntfile.js
+.svn
+.git
+npm-debug.log

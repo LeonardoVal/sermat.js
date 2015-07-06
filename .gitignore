@@ -1,0 +1,8 @@
+﻿node_modules/
+bower_components/
+docs/docker/
+tools/
+.svn
+.git
+npm-debug.log
+
