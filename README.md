@@ -66,8 +66,7 @@ Sermat.serialize(/\d+/g); // Results in: 'RegExp("\\\\d+","g")'.
 When parsed, the result will be a properly initialized instance of the corresponding type. Some 
 Javascript base types are implemented _out-of-the-box_. Implementations for custom types can be 
 defined with `Sermat.register` or adding a `__SERMAT__` member to the constructor. In the following 
-example the identifier is defined to be `mylib.Point2D`, instead of the default `Point2D`.  
-identifiers cannot have dots, it is necessary to write it between double quotes.
+example the identifier is defined to be `mylib.Point2D`, instead of the default `Point2D`.
 
 ```javascript
 function Point2D(x, y) {
@@ -87,6 +86,9 @@ Point2D.__SERMAT__ = {
 Sermat.register(Point2D);
 Sermat.serialize(new Point2D(44, 173)); // Results in: 'mylib.Point2D(44,173)'
 ```
+
+The serializer function must return the list of values to put between parenthesis. The materializer 
+function will rebuild the instance using these values. Further details are explained later on.
 
 ### References 
 
