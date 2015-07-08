@@ -34,8 +34,6 @@ var ALLOW_UNDEFINED = 1 << 0,
 /** Serialization method can be calles as `serialize` or `ser`.
 */
 var serialize = (function () {
-	var ID_REGEXP = /^[\$A-Z_a-z][\$0-9\-\.A-Z_a-z]*$/;
-
 	function __serializeValue__(ctx, value) {
 		switch (typeof value) {
 			case 'undefined': {

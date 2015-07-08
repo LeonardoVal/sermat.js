@@ -28,7 +28,8 @@ must be able to infer this name from the constructor function of the type. By de
 the constructor function is used, but this can be overriden by setting a `__SERMAT__` property
 of the function.
 */
-var FUNCTION_ID_RE = /^\s*function\s+(\w+)/;
+var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
+	ID_REGEXP = /^[\$A-Z_a-z][\$\-\.\w]*$/;
 function identifier(constructor, must) {
 	var id = (constructor.__SERMAT__ && constructor.__SERMAT__.identifier)
 		|| constructor.name
@@ -63,6 +64,9 @@ function record(__registry__, constructor) {
 */
 function register(__registry__, constructor, serializer, materializer) {
 	var id = identifier(constructor, true);
+	if (!ID_REGEXP.exec(id)) {
+		raise("Invalid identifier '"+ id +"'!", { invalidId: id, context: 'Sermat.register' });
+	}
 	if (__registry__.hasOwnProperty(id)) {
 		raise("'"+ id +"' is already registered!", { repeatedId: id, context: 'Sermat.register' });
 	}
