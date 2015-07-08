@@ -66,7 +66,8 @@ must be able to infer this name from the constructor function of the type. By de
 the constructor function is used, but this can be overriden by setting a `__SERMAT__` property
 of the function.
 */
-var FUNCTION_ID_RE = /^\s*function\s+(\w+)/;
+var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
+	ID_REGEXP = /^[\$A-Z_a-z][\$\-\.\w]*$/;
 function identifier(constructor, must) {
 	var id = (constructor.__SERMAT__ && constructor.__SERMAT__.identifier)
 		|| constructor.name
@@ -101,6 +102,9 @@ function record(__registry__, constructor) {
 */
 function register(__registry__, constructor, serializer, materializer) {
 	var id = identifier(constructor, true);
+	if (!ID_REGEXP.exec(id)) {
+		raise("Invalid identifier '"+ id +"'!", { invalidId: id, context: 'Sermat.register' });
+	}
 	if (__registry__.hasOwnProperty(id)) {
 		raise("'"+ id +"' is already registered!", { repeatedId: id, context: 'Sermat.register' });
 	}
@@ -185,8 +189,6 @@ var ALLOW_UNDEFINED = 1 << 0,
 /** Serialization method can be calles as `serialize` or `ser`.
 */
 var serialize = (function () {
-	var ID_REGEXP = /^[\$A-Z_a-z][\$0-9\-\.A-Z_a-z]*$/;
-
 	function __serializeValue__(ctx, value) {
 		switch (typeof value) {
 			case 'undefined': {
@@ -307,13 +309,13 @@ var EOL_RE = /\r\n?|\n/g,
 	performs the actual parsing.
 */
 	LEXER_RE = new RegExp([
-		/[ \f\n\r\t\v]+/, // whitespace (1)
-		/\/\*([\0-)+-.0-\uFFFF]*|\*+[\0-)+-.0-\uFFFF])*\*+\//, // block comment (2,3)
-		/[\$A-Z_a-z][\$0-9\-\.A-Z_a-z]*/, // identifier (4)
-		/[+-]Infinity|[+-]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?/, // numerals (5,6,7)
-		/\"([^\\\"]|\\[\0-\uFFFF])*\"/, // string literals (8,9)
-		/[\[\]\{\}\(\):,=]/, // symbols (10)
-		/.|$/ // error (11)
+		/\s+/, // whitespace (1)
+		/\/\*(?:[\0-)+-.0-\uFFFF]*|\*+[\0-)+-.0-\uFFFF])*\*+\//, // block comment (2)
+		/[\$A-Z_a-z][\$\-\.\w]*/, // identifier (3)
+		/[+-]Infinity|[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, // numerals (4)
+		/\"(?:[^\\\"]|\\[\0-\uFFFF])*\"/, // string literals (5)
+		/[\[\]\{\}\(\):,=]/, // symbols (6)
+		/.|$/ // error (7)
 	].map(function (re) {
 		re = re +'';
 		return '('+ re.substr(1, re.length - 2) +')';
@@ -490,7 +492,7 @@ function materialize(text) {
 		and a function callback. The regular expression deals with all language's lexemes. The 
 		function callback handles the parser's stacks.
 	*/
-	text.replace(LEXER_RE, function (match, $wsp, $comm, $_3, $id, $num, $_6, $_7, $str, $_9, $sym, $err, _offset) {
+	text.replace(LEXER_RE, function (match, $wsp, $comm, $id, $num, $str, $sym, $err, _offset) {
 		if ($wsp || $comm) {
 			return ''; // Ignore whitespace and comments.
 		}
