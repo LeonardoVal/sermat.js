@@ -1,50 +1,68 @@
-﻿/** Gruntfile for [jsser.js](http://github.com/LeonardoVal/jsser.js).
+﻿/** Gruntfile for [sermat.js](http://github.com/LeonardoVal/sermat.js).
 */
-var sourceFiles = [ 'src/__prologue__.js',
+var sourceFiles = [
+	'src/utilities.js',
 	'src/registry.js',
 	'src/serialization.js',
 	'src/materialization.js',
 	'src/constructions.js',
-	'src/wrapup.js',
-// end
-	'src/__epilogue__.js'];
+	'src/wrapup.js'
+];
 
-// Init config. ////////////////////////////////////////////////////////////////
 module.exports = function(grunt) {
 	grunt.file.defaultEncoding = 'utf8';
-// Init config. ////////////////////////////////////////////////////////////////
 	grunt.initConfig({
 		pkg: grunt.file.readJSON('package.json'),
-		jison: { ///////////////////////////////////////////////////////////////////////////////////
-			build: {
-				options: { 
-					type: 'slr',
-					moduleType: 'js'
-				},
-				files: {
-					'src/parser.js': 'src/parser.jison'
-				}
+		concat_sourcemap: { ////////////////////////////////////////////////////////////////////////
+			options: {
+				separator: '\n\n'
+			},
+			build_simple: {
+				src: ['src/wrappers/__prologue-simple__.js']
+					.concat(sourceFiles)
+					.concat(['src/wrappers/__epilogue-simple__.js']),
+				dest: 'build/<%= pkg.name %>.js',
+			},
+			build_umd: {
+				src: ['src/wrappers/__prologue-umd__.js']
+					.concat(sourceFiles)
+					.concat(['src/wrappers/__epilogue-umd__.js']),
+				dest: 'build/<%= pkg.name %>-umd.js',
+			},
+			build_node: {
+				src: ['src/wrappers/__prologue-node__.js']
+					.concat(sourceFiles)
+					.concat(['src/wrappers/__epilogue-node__.js']),
+				dest: 'build/<%= pkg.name %>-node.js',
 			}
 		},
-		concat_sourcemap: { ////////////////////////////////////////////////////////////////////////
-			build: {
-				src: sourceFiles,
-				dest: 'build/<%= pkg.name %>.js',
+		uglify: { //////////////////////////////////////////////////////////////////////////////////
+			options: {
+				report: 'min',
+				sourceMap: true
+			},
+			build_simple: {
+				src: 'build/<%= pkg.name %>.js',
+				dest: 'build/<%= pkg.name %>-min.js',
 				options: {
-					separator: '\n\n'
+					sourceMapIn: 'build/<%= pkg.name %>.js.map',
+					sourceMapName: 'build/<%= pkg.name %>-min.js.map'
 				}
 			},
-		},
-		uglify: { //////////////////////////////////////////////////////////////////////////////////
-			build: {
-				src: 'build/<%= pkg.name %>.js',
-				dest: 'build/<%= pkg.name %>.min.js',
+			build_umd: {
+				src: 'build/<%= pkg.name %>-umd.js',
+				dest: 'build/<%= pkg.name %>-umd-min.js',
 				options: {
-					banner: '//! <%= pkg.name %> <%= pkg.version %>\n',
-					report: 'min',
-					sourceMap: true,
-					sourceMapIn: 'build/<%= pkg.name %>.js.map',
-					sourceMapName: 'build/<%= pkg.name %>.min.js.map'
+					sourceMapIn: 'build/<%= pkg.name %>-umd.js.map',
+					sourceMapName: 'build/<%= pkg.name %>-umd-min.js.map'
+				}
+			},
+			build_node: {
+				src: 'build/<%= pkg.name %>-node.js',
+				dest: 'build/<%= pkg.name %>-node-min.js',
+				options: {
+					sourceMapIn: 'build/<%= pkg.name %>-node.js.map',
+					sourceMapName: 'build/<%= pkg.name %>-node-min.js.map'
 				}
 			}
 		},
@@ -52,29 +70,32 @@ module.exports = function(grunt) {
 			options: {
 				configFile: 'test/karma.conf.js'
 			},
-			build: { browsers: ['PhantomJS'] },
+			test_phantom: { browsers: ['PhantomJS'] },
 		},
 		docker: { //////////////////////////////////////////////////////////////////////////////////
-			build: {
-				src: ["src/**/*.js", "README.md", 'docs/*.md'],
-				dest: "docs/docker",
+			document: {
+				src: ['src/*.js', 'README.md', 'docs/*.md'],
+				dest: 'docs/docker',
 				options: {
 					colourScheme: 'borland',
-					ignoreHidden: true,
-					exclude: 'src/__prologue__.js,src/__epilogue__.js'
+					ignoreHidden: true
 				}
 			}
 		}
 	});
 // Load tasks. /////////////////////////////////////////////////////////////////////////////////////
 	grunt.loadNpmTasks('grunt-concat-sourcemap');
-	grunt.loadNpmTasks('grunt-karma');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
+	grunt.loadNpmTasks('grunt-karma');
 	grunt.loadNpmTasks('grunt-docker');
 	
 // Register tasks. /////////////////////////////////////////////////////////////////////////////////
-	grunt.registerTask('compile', ['concat_sourcemap:build', 'uglify:build']); 
-	grunt.registerTask('test', ['compile', 'karma:build']);
-	grunt.registerTask('build', ['test', 'docker:build']);
+	grunt.registerTask('compile', [
+		'concat_sourcemap:build_simple', 'uglify:build_simple',
+		'concat_sourcemap:build_umd', 'uglify:build_umd',
+		'concat_sourcemap:build_node', 'uglify:build_node'
+	]); 
+	grunt.registerTask('test', ['compile', 'karma:test_phantom']);
+	grunt.registerTask('build', ['test', 'docker:document']);
 	grunt.registerTask('default', ['build']);
 };

@@ -43,3 +43,8 @@ member(Sermat, 'record', __SINGLETON__['record']);
 	var rec = record(CONSTRUCTIONS, type);
 	Sermat.register(type, rec.serializer, rec.materializer);
 });
+
+/** Freeze Sermat's prototype and singleton.
+*/
+Object.freeze(Sermat);
+Object.freeze(Sermat.prototype);

@@ -1,7 +1,15 @@
-/** Simple package wrapper and layout, meant for browsers, web workers and the sort.
+/** Package wrapper and layout using [_Universal Module Definition_ a.k.a. UMD](https://github.com/umdjs/umd).
 */
-var Sermat = (function __init__() { "use strict";
-/** See `__epilogue-simple__.js`.
+(function (global, init) { "use strict";
+	if (typeof define === 'function' && define.amd) {
+		define([], init); // AMD module.
+	} else if (typeof exports === 'object' && module.exports) {
+		module.exports = init(); // CommonJS module.
+	} else {
+		global.Sermat = init(); // Browser.
+	}
+})(this, function __init__() { "use strict";
+/** See `__epilogue-umd__.js`.
 */
 
 /** Some utility functions used in the library.
@@ -704,9 +712,9 @@ member(Sermat, 'record', __SINGLETON__['record']);
 Object.freeze(Sermat);
 Object.freeze(Sermat.prototype);
 
-/** See __prologue-simple__.js
+/** See __prologue-umd__.js
 */
 	return Sermat;
-})();
+});
 
-//# sourceMappingURL=sermat.js.map
+//# sourceMappingURL=sermat-umd.js.map

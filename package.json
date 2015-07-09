@@ -2,7 +2,7 @@
 	"name": "sermat",
 	"description": "Sermat is a serialization format, similar to JSON.",
 	"keywords": [ "data format", "marshalling", "serialization" ],
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"author": {
 		"name": "Leonardo Val",
 		"email": "leonardo.val@creatartis.com"
@@ -14,7 +14,7 @@
 		"type": "git",
 		"url": "http://github.com/LeonardoVal/sermat.js"
 	},
-	"main": "build/sermat.min.js",
+	"main": "build/sermat-node-min.js",
 	"files": [
 		"build",
 		"LICENSE.md"

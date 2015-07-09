@@ -1,7 +1,4 @@
-/** Simple package wrapper and layout, meant for browsers, web workers and the sort.
-*/
-var Sermat = (function __init__() { "use strict";
-/** See `__epilogue-simple__.js`.
+/** Package wrapper and layout for NodeJS. See `__epilogue-node__.js`.
 */
 
 /** Some utility functions used in the library.
@@ -704,9 +701,8 @@ member(Sermat, 'record', __SINGLETON__['record']);
 Object.freeze(Sermat);
 Object.freeze(Sermat.prototype);
 
-/** See __prologue-simple__.js
+/** See __prologue-node__.js
 */
-	return Sermat;
-})();
+module.exports = Sermat;
 
-//# sourceMappingURL=sermat.js.map
+//# sourceMappingURL=sermat-node.js.map
