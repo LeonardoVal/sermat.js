@@ -9,7 +9,7 @@ the data structure it represents.
 function construct(id, obj, args) {
 	var record = this.record(id);
 	if (record) {
-		return record.materializer(obj, args);
+		return record.materializer.call(this, obj, args);
 	} else {
 		raise("Cannot materialize construction for '"+ id +"'", { invalidId: id, context: "Sermat.construct" });
 	}
