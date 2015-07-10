@@ -20,6 +20,20 @@ function signature(obj, args) {
 	return type(obj) +','+ args.map(type).join(',');
 }
 
+/** The `checkSignature` function checks the types of a call to a materializer using a regular
+	expression to match the result of `signature`. This is a simple and quick way of making the
+	materializer functions more secure.
+*/
+function checkSignature(id, regexp, obj, args) {
+	var types = signature(obj, args);
+	if (!regexp.exec(types)) {
+		raise("Wrong arguments for construction of "+ id +" ("+ types +")!", 
+			{ id: id, obj: obj, args: args, context: "Sermat.materialize" }
+		);
+	}
+	return true;
+}
+
 /** `Sermat.CONSTRUCTIONS` holds the default implementations for some of Javascript's base types. 
 */
 var CONSTRUCTIONS = {}
@@ -85,13 +99,9 @@ register(CONSTRUCTIONS, RegExp,
 		return [comps[1], comps[2]];
 	},
 	function materialize_RegExp(obj, args /* [regexp, flags] */) {
-		if (!args) {
-			return null;
-		}
-		if (!/^(,string){1,2}$/.exec(signature(obj, args))) {
-			raise("Cannot materialize RegExp!", { obj: obj, args: args, context: "Sermat.materialize_RegExp" });
-		}
-		return new RegExp(args[0], args[1] || '');
+		return args 
+			&& checkSignature('RegExp', /^(,string){1,2}$/, obj, args) 
+			&& (new RegExp(args[0], args[1] || ''));
 	}
 );
 
@@ -104,13 +114,9 @@ register(CONSTRUCTIONS, Date,
 			value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), value.getUTCMilliseconds()];
 	},
 	function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
-		if (!args) {
-			return null;
-		}
-		if (!/^(,number){1,7}$/.exec(signature(obj, args))) {
-			raise("Cannot materialize Date!", { obj: obj, args: args, context: "Sermat.materialize_Date" });
-		}
-		return new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, args[4] |0, args[5] |0, args[6] |0));
+		return args 
+			&& checkSignature('Date', /^(,number){1,7}$/, obj, args) 
+			&& (new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, args[4] |0, args[5] |0, args[6] |0)));
 	}
 );
 
@@ -119,19 +125,15 @@ register(CONSTRUCTIONS, Date,
 */
 register(CONSTRUCTIONS, Function,
 	function serialize_Function(value) {
-		var comps = /^function\s*[\w$]*\s*\(((\s*[$\w]+\s*,?)*)\)\s*\{(.*)\}$/.exec(value +'');
+		var comps = /^function\s*[\w$]*\s*\(((\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(value +'');
 		if (!comps) {
 			raise("Could not serialize Function "+ value +"!", { context: "Sermat.serialize_Function", value: value });
 		}
 		return comps[1].split(/\s*,\s*/).concat([comps[3]]);
 	},
 	function materialize_Function(obj, args /* [args..., body] */) {
-		if (!args) {
-			return null;
-		}
-		if (!/^(,string)+$/.exec(signature(obj, args))) {
-			raise("Cannot materialize Function!", { obj: obj, args: args, context: "Sermat.materialize_Function" });
-		}
-		return Function.apply(null, args);
+		return args 
+			&& checkSignature('Function', /^(,string)+$/, obj, args) 
+			&& (Function.apply(null, args));
 	}
 );

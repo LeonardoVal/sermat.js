@@ -104,8 +104,8 @@ var serialize = (function () {
 			separated by commas between parenthesis. It ressembles a call to a function in 
 			Javascript.
 		*/
-			var record = ctx.record(obj.constructor),
-				args = record.serializer(obj),
+			var record = ctx.Sermat.record(obj.constructor),
+				args = record.serializer.call(ctx.Sermat, obj),
 				id = record.identifier;
 			output += (ID_REGEXP.exec(id) ? id : __serializeValue__(id)) +'(';
 			for (i = 0, len = args.length; i < len; i++) {
@@ -125,8 +125,22 @@ var serialize = (function () {
 		return __serializeValue__({
 			visited: [], 
 			parents: [],
-			record: this.record.bind(this),
-			modifiers: modifiers 
+			modifiers: modifiers,
+			Sermat: this
 		}, obj);
 	};
 })();
+
+/** `serializeWithProperties` is a generic way of serializing an object, by creating another object 
+with some of its properties. This method can be used to quickly implement a serializer function when 
+the constructor of the type can be called with an object.
+*/
+function serializeWithProperties(obj, properties) {
+	var result = {}, 
+		name;
+	for (var i = 0, len = properties.length; i < len; i++) {
+		name = properties[i];
+		result[name] = obj[name];
+	}
+	return [result];
+}

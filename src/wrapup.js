@@ -23,8 +23,10 @@ function sermat(obj, modifiers) {
 	'identifier': identifier,
 	'construct': construct,
 	'materializeWithConstructor': materializeWithConstructor,
+	'serializeWithProperties': serializeWithProperties,
 	'type': type,
 	'signature': signature,
+	'checkSignature': checkSignature,
 	
 	'serialize': serialize,
 	'ser': serialize,
