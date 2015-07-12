@@ -725,10 +725,11 @@ member(Sermat, 'record', __SINGLETON__['record']);
 	Sermat.register(type, rec.serializer, rec.materializer);
 });
 
-/** Freeze Sermat's prototype and singleton.
+/** Module layout (not frozen in purpose).
 */
-Object.freeze(Sermat);
-Object.freeze(Sermat.prototype);
+Sermat.__name__ = 'Sermat';
+Sermat.__init__ = __init__;
+Sermat.__dependencies__ = [];
 
 /** See __prologue-umd__.js
 */

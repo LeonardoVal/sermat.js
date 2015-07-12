@@ -1,2 +1,5 @@
-/** Package wrapper and layout for NodeJS. See `__epilogue-node__.js`.
+/** Package wrapper and layout for NodeJS.
+*/
+module.exports = (function __init__() {
+/** See `__epilogue-node__.js`.
 */
