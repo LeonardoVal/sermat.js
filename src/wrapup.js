@@ -48,6 +48,7 @@ member(Sermat, 'record', __SINGLETON__['record']);
 
 /** Module layout (not frozen in purpose).
 */
+Sermat.__package__ = 'sermat';
 Sermat.__name__ = 'Sermat';
 Sermat.__init__ = __init__;
 Sermat.__dependencies__ = [];
