@@ -27,113 +27,115 @@ function signature(obj, args) {
 function checkSignature(id, regexp, obj, args) {
 	var types = signature(obj, args);
 	if (!regexp.exec(types)) {
-		raise("Wrong arguments for construction of "+ id +" ("+ types +")!", 
-			{ id: id, obj: obj, args: args, context: "Sermat.materialize" }
-		);
+		raise('checkSignature', "Wrong arguments for construction of "+ id +" ("+ types +")!", 
+			{ id: id, obj: obj, args: args });
 	}
 	return true;
 }
 
-/** `Sermat.CONSTRUCTIONS` holds the default implementations for some of Javascript's base types. 
+/** `Sermat.CONSTRUCTIONS` has default implementations for Javascript's base types.
 */
-var CONSTRUCTIONS = {}
-/** + All `Boolean`, `Number`, `String`, `Object` and `Array` instances are serialized with their 
+var CONSTRUCTIONS = {};
+[
+/** All `Boolean`, `Number`, `String`, `Object` and `Array` instances are serialized with their 
 	specific syntax and never as constructions. These are added only for compatibility at 
 	materialization.
 */
-register(CONSTRUCTIONS, Boolean,
-	function serialize_Boolean(value) {
-		return [!!value];
-	},
-	function materialize_Boolean(obj, args) { //
-		return args && new Boolean(args[0]);
-	}
-);
-	
-register(CONSTRUCTIONS, Number,
-	function serialize_Number(value) {
-		return [+value];
-	},
-	function materialize_Number(obj, args) {
-		return args && new Number(args[0]);
-	}
-);
-
-register(CONSTRUCTIONS, String,
-	function serialize_String(value) {
-		return [value +''];
-	},
-	function materialize_String(obj, args) {
-		return args && new String(args[0]);
-	}
-);
-
-register(CONSTRUCTIONS, Object,
-	function serialize_Object(value) { // Should never be called.
-		return [value];
-	},
-	function materialize_Object(obj, args) {
-		return args && args[0];
-	}
-);
-
-register(CONSTRUCTIONS, Array,
-	function serialize_Array(value) { // Should never be called.
-		return value; 
-	},
-	function materialize_Array(obj, args) {
-		obj = obj || [];
-		return args ? obj.concat(args) : obj;
-	}
-);
+	[Boolean,
+		function serialize_Boolean(value) {
+			return [!!value];
+		},
+		function materialize_Boolean(obj, args) {
+			return args && new Boolean(args[0]);
+		}
+	],
+	[Number,
+		function serialize_Number(value) {
+			return [+value];
+		},
+		function materialize_Number(obj, args) {
+			return args && new Number(args[0]);
+		}
+	],
+	[String,
+		function serialize_String(value) {
+			return [value +''];
+		},
+		function materialize_String(obj, args) {
+			return args && new String(args[0]);
+		}
+	],
+	[Object,
+		function serialize_Object(value) { // Should never be called.
+			return [value];
+		},
+		function materialize_Object(obj, args) {
+			return args && args[0];
+		}
+	],
+	[Array,
+		function serialize_Array(value) { // Should never be called.
+			return value; 
+		},
+		function materialize_Array(obj, args) {
+			obj = obj || [];
+			return args ? obj.concat(args) : obj;
+		}
+	],
 
 /** + `RegExp` instances are serialized with two arguments: a string for the regular expression and 
 	a string for its flags.
 */
-register(CONSTRUCTIONS, RegExp,
-	function serialize_RegExp(value) {
-		var comps = /^\/(.+?)\/([a-z]*)$/.exec(value +'');
-		if (!comps) {
-			raise("Cannot serialize RegExp "+ value +"!", { value: value, context: "Sermat.serialize_RegExp" });
+	[RegExp,
+		function serialize_RegExp(value) {
+			var comps = /^\/(.+?)\/([a-z]*)$/.exec(value +'');
+			if (!comps) {
+				raise('serialize_RegExp', "Cannot serialize RegExp "+ value +"!", { value: value });
+			}
+			return [comps[1], comps[2]];
+		},
+		function materialize_RegExp(obj, args /* [regexp, flags] */) {
+			return args 
+				&& checkSignature('RegExp', /^(,string){1,2}$/, obj, args) 
+				&& (new RegExp(args[0], args[1] || ''));
 		}
-		return [comps[1], comps[2]];
-	},
-	function materialize_RegExp(obj, args /* [regexp, flags] */) {
-		return args 
-			&& checkSignature('RegExp', /^(,string){1,2}$/, obj, args) 
-			&& (new RegExp(args[0], args[1] || ''));
-	}
-);
+	],
 
 /** + `Date` instances are serialized using its seven UTC numerical components (in this order): 
 	year, month, day, hours, minutes, seconds and milliseconds.
 */
-register(CONSTRUCTIONS, Date,
-	function serialize_Date(value) {
-		return [value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
-			value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), value.getUTCMilliseconds()];
-	},
-	function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
-		return args 
-			&& checkSignature('Date', /^(,number){1,7}$/, obj, args) 
-			&& (new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, args[4] |0, args[5] |0, args[6] |0)));
-	}
-);
+	[Date,
+		function serialize_Date(value) {
+			return [value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
+				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), value.getUTCMilliseconds()];
+		},
+		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
+			return args 
+				&& checkSignature('Date', /^(,number){1,7}$/, obj, args) 
+				&& (new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, args[4] |0, args[5] |0, args[6] |0)));
+		}
+	],
 
 /** + `Function` is not registered by default, but it is available. Functions are serialized as 
 	required by the `Function` constructor.
 */
-register(CONSTRUCTIONS, Function,
-	function serialize_Function(value) {
-		var comps = /^function\s*[\w$]*\s*\(((\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(value +'');
-		if (!comps) {
-			raise("Could not serialize Function "+ value +"!", { context: "Sermat.serialize_Function", value: value });
+	[Function,
+		function serialize_Function(value) {
+			var comps = /^function\s*[\w$]*\s*\(((\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(value +'');
+			if (!comps) {
+				raise('serialize_Function', "Could not serialize Function "+ value +"!", { value: value });
+			}
+			return comps[1].split(/\s*,\s*/).concat([comps[3]]);
+		},
+		function materialize_Function(obj, args /* [args..., body] */) {
+			return args 
+				&& checkSignature('Function', /^(,string)+$/, obj, args) 
+				&& (Function.apply(null, args));
 		}
-		return comps[1].split(/\s*,\s*/).concat([comps[3]]);
-	},
-	function materialize_Function(obj, args /* [args..., body] */) {
-		return args 
-			&& checkSignature('Function', /^(,string)+$/, obj, args) 
-			&& (Function.apply(null, args));
-	}
-);
+	]
+].forEach(function (rec) {
+	var id = identifier(rec[0], true);
+	member(CONSTRUCTIONS, id, entry(id, rec[0], rec[1], rec[2]), 1);
+});
+
+
