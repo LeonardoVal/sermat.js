@@ -11,7 +11,7 @@ function construct(id, obj, args) {
 	if (record) {
 		return record.materializer.call(this, obj, args);
 	} else {
-		raise("Cannot materialize construction for '"+ id +"'", { invalidId: id, context: "Sermat.construct" });
+		raise('construct', "Cannot materialize construction for '"+ id +"'", { invalidId: id });
 	}
 }
 
@@ -87,7 +87,6 @@ function materialize(text) {
 	function parseError(message, data) {
 		data = data || {};
 		data.offset = offset;
-		data.context = "Sermat.materialize";
 		var line = 0, lineStart = 0;
 		text.substr(0, offset).replace(EOL_RE, function (match, pos) {
 			lineStart = pos + match.length;
@@ -96,7 +95,7 @@ function materialize(text) {
 		});
 		data.line = line + 1;
 		data.column = offset - lineStart;
-		raise(message +" at line "+ data.line +" column "+ data.column +" (offset "+ offset +")!", data);
+		raise('materialize', message +" at line "+ data.line +" column "+ data.column +" (offset "+ offset +")!", data);
 	}
 
 	/** Being an LALR parser, the _semantics_ is expressed in functions that are called when a reduce 
