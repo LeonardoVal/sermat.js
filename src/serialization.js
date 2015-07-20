@@ -2,45 +2,49 @@
 
 Serialization is similar to JSON's `stringify` method. The method takes a data structure and 
 produces a text representation of it. As a second argument the function takes a set of modifiers of
-the functions behaviour. These include:
+the functions behaviour. The most important one is perhaps `mode`.
 */
 
-/** + `ALLOW_UNDEFINED`: If `true` allows undefined values to be serialized as `null`. If `false` (the
+/** There are four modes of operation:
+
++ `BASIC_MODE`: No object inside the given value is allowed to be serialized more than once.
+
++ `REPEATED_MODE`: If while serializing any object inside the given value is visited more than once,
+	its serialization is repeated every time. Still, circular references are not allowed. This is
+	analoguos to `JSON.stringify`'s behaviour.
+
++ `BINDING_MODE`: Every object inside the given value is given an identifier. If any one of these
+	is visited twice or more, a reference to the first serialization is generated using this 
+	identifier. Yet, circular references are forbidden. The materialization actually reuses 
+	instances.
+
++ `CIRCULAR_MODE`: Similar to `BINDING_MODE`, except that circular references are allowed. This
+	still depends on the constructions materializers supporting circular references.
+*/
+var BASIC_MODE = 0,
+	REPEAT_MODE = 1,
+	BINDING_MODE = 2,
+	CIRCULAR_MODE = 3;
+
+/** Other modifiers include:
+
++ `allowUndefined`: If `true` allows undefined values to be serialized as `null`. If `false` (the 
 	default) any undefined value inside the given object will raise an error.
-*/
-var ALLOW_UNDEFINED = 1 << 0,
 
-/** + `ALLOW_REPEATED`: The serialization constraints any object to appear more than once in the
-	resulting text. If this modifier is `true`, object may be serialized repeatedly instead.
++ `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
+	all objects are treated as literals (the same way JSON does). It is `true` by default.
 */
-	ALLOW_REPEATED = 1 << 1,
 
-/** + `ALLOW_BINDINGS`: If `true`, this modifier causes every object to be assigned an identifier 
-	(starting with `$`), and any repeated appearance results in this binding being used. It is 
-	`false` by default.
-*/
-	ALLOW_BINDINGS = 1 << 2,
-	
-/** + `ALLOW_CIRCULAR`: If `true`, this modifier causes circular references to be serialized. Since
-	this uses bindings, `ALLOW_BINDINGS` is implied.
-*/
-	ALLOW_CIRCULAR = 1 << 3,
-
-/** + `FORBID_CONSTRUCTIONS`: If `true` constructions (i.e. custom serializations) are not used, and all 
-	objects are treated as literals (the same way JSON does). It is `false` by default.
-*/
-	FORBID_CONSTRUCTIONS = 1 << 4;
-
-/** Serialization method can be calles as `serialize` or `ser`.
+/** Serialization method can be called as `serialize` or `ser`.
 */
 var serialize = (function () {
 	function __serializeValue__(ctx, value) {
 		switch (typeof value) {
 			case 'undefined': {
-				if (ctx.modifiers & ALLOW_UNDEFINED) {
+				if (ctx.allowUndefined) {
 					return 'null';
 				} else {
-					raise("Cannot serialize undefined value!", { context: "Sermat.serialize" });
+					raise('serialize', "Cannot serialize undefined value!");
 				}
 			}
 			case 'boolean':   
@@ -58,20 +62,20 @@ var serialize = (function () {
 	function __serializeObject__(ctx, obj) {
 		if (!obj) {
 			return 'null';
-		} else if (ctx.parents.indexOf(obj) >= 0 && !(ctx.modifiers & ALLOW_CIRCULAR)) {
-			raise("Circular reference detected!", { circularReference: obj, context: "Sermat.serialize" });
+		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
+			raise('serialize', "Circular reference detected!", { circularReference: obj });
 		}
 		var i = ctx.visited.indexOf(obj), output = '', 
 			k, len;
 		if (i >= 0) {
-			if (ctx.modifiers & ALLOW_BINDINGS) {
+			if (ctx.mode & BINDING_MODE) {
 				return '$'+ i;
-			} else if (!(ctx.modifiers & ALLOW_REPEATED)) {
-				raise("Repeated reference detected!", { repeatedReference: obj, context: "Sermat.serialize" });
+			} else if (ctx.mode !== REPEAT_MODE) {
+				raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
 			}
 		} else {
 			i = ctx.visited.push(obj) - 1;
-			if (ctx.modifiers & ALLOW_BINDINGS) {
+			if (ctx.mode & BINDING_MODE) {
 				output = '$'+ i +'=';
 			}
 		}
@@ -85,7 +89,7 @@ var serialize = (function () {
 				output += (i ? ',' : '')+ __serializeValue__(ctx, obj[i]);
 			}
 			output += ']';
-		} else if (obj.constructor === Object || ctx.modifiers & FORBID_CONSTRUCTIONS) { // Object literals.
+		} else if (obj.constructor === Object || !ctx.useConstructions) { // Object literals.
 		/** An object literal is serialized as a sequence of key-value pairs separated by commas 
 			between braces. Each pair is joined by a colon. This is the same syntax that 
 			Javascript's object literals follow.
@@ -118,15 +122,15 @@ var serialize = (function () {
 	}
 
 	return function serialize(obj, modifiers) {
-		modifiers = modifiers |0;
-		if (modifiers & ALLOW_CIRCULAR) {
-			modifiers |= ALLOW_BINDINGS;
-		}
+		modifiers = modifiers || {};
 		return __serializeValue__({
+			Sermat: this,
 			visited: [], 
 			parents: [],
-			modifiers: modifiers,
-			Sermat: this
+			// Modifiers
+			mode: coalesce(modifiers.mode, this.mode),
+			allowUndefined: coalesce(modifiers.allowUndefined, this.allowUndefined),
+			useConstructions: coalesce(modifiers.useConstructions, this.useConstructions)
 		}, obj);
 	};
 })();
