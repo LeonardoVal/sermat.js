@@ -1,4 +1,4 @@
-var Sermat = (/** Library wrapper and layout.
+define([], /** Library wrapper and layout.
 */
 function __init__() { "use strict";
 	/** Some utility functions used in the library.
@@ -753,5 +753,5 @@ Sermat.__dependencies__ = [];
 /** See __prologue__.js
 */
 	return Sermat;
-})();
-//# sourceMappingURL=sermat.js.map
+});
+//# sourceMappingURL=sermat-amd.js.map
