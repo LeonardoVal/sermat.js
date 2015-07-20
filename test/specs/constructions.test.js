@@ -82,12 +82,12 @@
 		
 		var r1 = new Ref(), r2 = new Ref(r1, r1), r3;
 		expect(Sermat.ser.bind(Sermat, r2)).toThrow();
-		[Sermat.ALLOW_REPEATED, Sermat.ALLOW_BINDINGS, Sermat.ALLOW_CIRCULAR].forEach(function (modifiers) {
-			r3 = Sermat.mat(Sermat.ser(r2, modifiers));
+		[Sermat.REPEAT_MODE, Sermat.BINDING_MODE, Sermat.CIRCULAR_MODE].forEach(function (mode) {
+			r3 = Sermat.mat(Sermat.ser(r2, { mode: mode }));
 			[r3, r3.refs[0], r3.refs[1]].forEach(function (r) {
 				expect(r instanceof Ref).toBe(true);
 			});
-			if (modifiers === Sermat.ALLOW_REPEATED) {
+			if (mode === Sermat.REPEAT_MODE) {
 				expect(r3.refs[0]).not.toBe(r3.refs[1]);
 			} else {
 				expect(r3.refs[0]).toBe(r3.refs[1]);
@@ -97,9 +97,9 @@
 		r2 = new Ref(r1);
 		r2.refs.push(r2);
 		expect(Sermat.ser.bind(Sermat, r2)).toThrow();
-		expect(Sermat.ser.bind(Sermat, r2, Sermat.ALLOW_REPEATED)).toThrow();
-		expect(Sermat.ser.bind(Sermat, r2, Sermat.ALLOW_BINDINGS)).toThrow();
-		r3 = Sermat.mat(Sermat.ser(r2, Sermat.ALLOW_CIRCULAR));
+		expect(Sermat.ser.bind(Sermat, r2, { mode: Sermat.REPEAT_MODE })).toThrow();
+		expect(Sermat.ser.bind(Sermat, r2, { mode: Sermat.BINDING_MODE })).toThrow();
+		r3 = Sermat.mat(Sermat.ser(r2, { mode: Sermat.CIRCULAR_MODE }));
 		[r3, r3.refs[0], r3.refs[1]].forEach(function (r) {
 			expect(r instanceof Ref).toBe(true);
 		});

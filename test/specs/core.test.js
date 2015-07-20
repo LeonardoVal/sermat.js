@@ -27,7 +27,7 @@
 	it(" with undefined values.", function () {
 		expect(Sermat.serialize.bind(Sermat, undefined)).toThrow();
 		expect(Sermat.serialize.bind(Sermat, undefined, 0)).toThrow();
-		expect(Sermat.serialize(undefined, Sermat.ALLOW_UNDEFINED)).toBe("null");
+		expect(Sermat.serialize(undefined, { allowUndefined: 1 })).toBe("null");
 	});
 	
 	it(" with numbers.", function () {
@@ -115,8 +115,8 @@
 		var obj = {};
 		obj.x = obj;
 		expect(Sermat.serialize.bind(Sermat, obj)).toThrow();
-		expect(Sermat.serialize.bind(Sermat, obj, Sermat.ALLOW_REPEATED)).toThrow();
-		expect(Sermat.serialize(obj, Sermat.ALLOW_CIRCULAR)).toBe('$0={x:$0}');
+		expect(Sermat.serialize.bind(Sermat, obj, { mode: Sermat.REPEAT_MODE })).toThrow();
+		expect(Sermat.serialize(obj, { mode: Sermat.CIRCULAR_MODE })).toBe('$0={x:$0}');
 	});
 	
 	it(" with repeated objects.", function () {
@@ -124,26 +124,26 @@
 		expect(Sermat.serialize.bind(Sermat, [obj, obj])).toThrow();
 		expect(Sermat.serialize.bind(Sermat, {a: obj, b: obj})).toThrow();
 		
-		expect(Sermat.serialize([obj, obj], Sermat.ALLOW_REPEATED)).toBe("[{},{}]");
-		expect(Sermat.serialize({a: obj, b: obj}, Sermat.ALLOW_REPEATED)).toBe("{a:{},b:{}}");
+		expect(Sermat.serialize([obj, obj], { mode: Sermat.REPEAT_MODE })).toBe("[{},{}]");
+		expect(Sermat.serialize({a: obj, b: obj}, { mode: Sermat.REPEAT_MODE })).toBe("{a:{},b:{}}");
 	});
 	
 	it(" with bindings.", function () {
 		var obj = {x:88},
-			serialized = Sermat.serialize([obj, obj], Sermat.ALLOW_BINDINGS),
+			serialized = Sermat.serialize([obj, obj], { mode: Sermat.BINDING_MODE }),
 			materialized = Sermat.materialize(serialized);
 		expect(Array.isArray(materialized)).toBe(true);
 		expect(materialized[0]).toBe(materialized[1]);
 		materialized[0].x = 17;
 		expect(materialized[1].x).toBe(17);
 		
-		serialized = Sermat.serialize({a: obj, b: obj}, Sermat.ALLOW_BINDINGS),
+		serialized = Sermat.serialize({a: obj, b: obj}, { mode: Sermat.BINDING_MODE }),
 		materialized = Sermat.materialize(serialized);
 		expect(materialized.a).toBe(materialized.b);
 		materialized.a.x = 93;
 		expect(materialized.b.x).toBe(93);
 		
-		serialized = Sermat.serialize([obj, {a: obj, b: {c: obj}}], Sermat.ALLOW_BINDINGS),
+		serialized = Sermat.serialize([obj, {a: obj, b: {c: obj}}], { mode: Sermat.BINDING_MODE }),
 		materialized = Sermat.materialize(serialized);
 		expect(Array.isArray(materialized)).toBe(true);
 		expect(materialized[0]).toBe(materialized[1].a);
