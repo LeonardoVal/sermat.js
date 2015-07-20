@@ -2,7 +2,7 @@
 	"name": "sermat",
 	"description": "Sermat is a serialization format, similar to JSON.",
 	"keywords": [ "data format", "marshalling", "serialization" ],
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"author": {
 		"name": "Leonardo Val",
 		"email": "leonardo.val@creatartis.com"
@@ -22,7 +22,7 @@
 	"dependencies": {},
 	"devDependencies": {
 		"grunt": "~0.4.4",
-			"grunt-concat-sourcemap": "~0.4.0",
+			"grunt-contrib-concat": "~0.5.1",
 			"grunt-contrib-uglify": "~0.4.0",
 			"grunt-docker": "~0.0.8",
 		"grunt-karma": "~0.8.0",
