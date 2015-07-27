@@ -16,43 +16,55 @@
 	});
 	
 	it(" with simple values.", function () {
-		expect(Sermat.serialize(true)).toBe("true");
-		expect(Sermat.serialize(false)).toBe("false");
-		expect(Sermat.serialize(null)).toBe("null");		
-		expect(Sermat.materialize('true')).toBe(true);
-		expect(Sermat.materialize('false')).toBe(false);
-		expect(Sermat.materialize('null')).toBe(null);
+		function test(sermat) {
+			expect(sermat.serialize(true)).toBe("true");
+			expect(sermat.serialize(false)).toBe("false");
+			expect(sermat.serialize(null)).toBe("null");		
+			expect(sermat.materialize('true')).toBe(true);
+			expect(sermat.materialize('false')).toBe(false);
+			expect(sermat.materialize('null')).toBe(null);
+		}
+		test(Sermat);
+		test(new Sermat());
 	});
 	
 	it(" with undefined values.", function () {
-		expect(Sermat.serialize.bind(Sermat, undefined)).toThrow();
-		expect(Sermat.serialize.bind(Sermat, undefined, 0)).toThrow();
-		expect(Sermat.serialize(undefined, { allowUndefined: 1 })).toBe("null");
+		function test(sermat) {
+			expect(sermat.serialize.bind(Sermat, undefined)).toThrow();
+			expect(sermat.serialize.bind(Sermat, undefined, 0)).toThrow();
+			expect(sermat.serialize(undefined, { allowUndefined: 1 })).toBe("null");
+		}
+		test(Sermat);
+		test(new Sermat());
 	});
 	
 	it(" with numbers.", function () {
-		var num;
-		for (var i = 0; i < 30; i++) {
-			num = (Math.random() * 2000) - 1000;
-			expect(Sermat.serialize(num)).toBe(num +'');
-			expect(Sermat.materialize(num +'')).toBe(num);
-		};
-		['1e3', '2e-4', '33e2', '-7e-2',
-		 'Infinity', '+Infinity', '-Infinity'
-		].forEach(function (str) {
-			expect(Sermat.materialize(str)).toBe(+str);
-		});
-		expect(isNaN(Sermat.materialize('NaN'))).toBe(true);
-		expect(Sermat.serialize(Infinity)).toBe("Infinity");
-		expect(Sermat.serialize(-Infinity)).toBe("-Infinity");
-		expect(Sermat.serialize(NaN)).toBe("NaN");
+		function test(sermat) {
+			var num;
+			for (var i = 0; i < 30; i++) {
+				num = (Math.random() * 2000) - 1000;
+				expect(sermat.serialize(num)).toBe(num +'');
+				expect(sermat.materialize(num +'')).toBe(num);
+			};
+			['1e3', '2e-4', '33e2', '-7e-2',
+			 'Infinity', '+Infinity', '-Infinity'
+			].forEach(function (str) {
+				expect(sermat.materialize(str)).toBe(+str);
+			});
+			expect(isNaN(sermat.materialize('NaN'))).toBe(true);
+			expect(sermat.serialize(Infinity)).toBe("Infinity");
+			expect(sermat.serialize(-Infinity)).toBe("-Infinity");
+			expect(sermat.serialize(NaN)).toBe("NaN");
+		}
+		test(Sermat);
+		test(new Sermat());
 	});
 	
 	it(" with strings.", function () {
-		function checkString(text) {
-			var serialized = Sermat.serialize(text);
+		function checkString(sermat, text) {
+			var serialized = sermat.serialize(text);
 			try {
-				expect(Sermat.materialize(serialized)).toBe(text);
+				expect(sermat.materialize(serialized)).toBe(text);
 			} catch (err) {
 				console.error('Materializing string '+ serialized +' ('+
 					text.split('').map(function (chr) { return chr.charCodeAt(0); }).join(',') +
@@ -64,22 +76,30 @@
 		['', 'a', 'abcdef', 
 		 '"', 'a"b', 
 		 '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234'
-		].forEach(checkString);
+		].forEach(function (str) {
+			checkString(Sermat, str);
+			checkString(new Sermat(), str);
+		});
 		for (var i = 0; i < 1024; i++) {
-			checkString(String.fromCharCode(i));
+			checkString(Sermat, String.fromCharCode(i));
+			checkString(new Sermat(), String.fromCharCode(i));
 		}
 	});
 	
 	it(" with arrays.", function () {
-		var array = [],
-			serialized = Sermat.serialize(array);
-		expect(Sermat.serialize(Sermat.materialize(serialized))).toBe(serialized);
-		[1, 'a', '\n', true, null, [1]
-		].forEach(function (value) {
-			array.push(value);
-			var serialized = Sermat.serialize(array);
-			expect(Sermat.serialize(Sermat.materialize(serialized))).toBe(serialized);
-		});
+		function test(sermat) {
+			var array = [],
+				serialized = sermat.serialize(array);
+			expect(sermat.serialize(sermat.materialize(serialized))).toBe(serialized);
+			[1, 'a', '\n', true, null, [1]
+			].forEach(function (value) {
+				array.push(value);
+				var serialized = sermat.serialize(array);
+				expect(sermat.serialize(sermat.materialize(serialized))).toBe(serialized);
+			});
+		}
+		test(Sermat);
+		test(new Sermat());
 	});
 	
 	it(" with object literals.", function () { 
@@ -89,17 +109,25 @@
 		].forEach(function (obj) {
 			var serialized = Sermat.serialize(obj);
 			expect(Sermat.serialize(Sermat.materialize(serialized))).toBe(serialized);
+			var sermat = new Sermat();
+			serialized = sermat.serialize(obj);
+			expect(sermat.serialize(sermat.materialize(serialized))).toBe(serialized);
 		});
 	});
 	
 	it(" with comments.", function () {
-		expect(Sermat.materialize('1 /* comment */')).toBe(1);
-		expect(Sermat.materialize('/* comment */ true')).toBe(true);
-		expect(Sermat.materialize('/* [ */ null /* ] */')).toBe(null);
-		expect(Sermat.serialize(Sermat.materialize('[1 /*, 2 */, 3]'))).toBe('[1,3]');
+		function test(sermat) {
+			expect(sermat.materialize('1 /* comment */')).toBe(1);
+			expect(sermat.materialize('/* comment */ true')).toBe(true);
+			expect(sermat.materialize('/* [ */ null /* ] */')).toBe(null);
+			expect(sermat.serialize(sermat.materialize('[1 /*, 2 */, 3]'))).toBe('[1,3]');
+		}
+		test(Sermat);
+		test(new Sermat());
 	});
 	
 	it(" with errors.", function () {
+		var sermat = new Sermat();
 		['', ' \n\t', '// comment ', '/* comment */',
 		 'undefined', 'TRUE', 'False', 'NuLL',
 		 '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
@@ -108,6 +136,7 @@
 		 '{', '}', '{,a:1}', '{a:1,}', '{,}', '{a:,1}', '{a,:1}', '{a::1}', '{:a:1}', '{a:1:}',
 		].forEach(function (wrongInput) {
 			expect(Sermat.materialize.bind(Sermat, wrongInput)).toThrow();
+			expect(sermat.materialize.bind(sermat, wrongInput)).toThrow();
 		})
 	});
 	
