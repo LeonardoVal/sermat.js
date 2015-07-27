@@ -15,9 +15,9 @@ function __init__() { "use strict";
 		flags = flags|0;
 		Object.defineProperty(obj, id, {
 			value: value,
-			writable: flags & 0x4, 
-			configurable: flags & 0x2, 
-			enumerable: flags & 0x1
+			writable: flags & 4, 
+			configurable: flags & 2, 
+			enumerable: flags & 1
 		});
 	}
 
