@@ -15,9 +15,9 @@ function __init__() { "use strict";
 		flags = flags|0;
 		Object.defineProperty(obj, id, {
 			value: value,
-			writable: flags & 0x4, 
-			configurable: flags & 0x2, 
-			enumerable: flags & 0x1
+			writable: flags & 4, 
+			configurable: flags & 2, 
+			enumerable: flags & 1
 		});
 	}
 
@@ -38,109 +38,132 @@ RegExp("\d+", "g")
 Date(1999,12,31,23,59,59,999)
 ```
 
-These are called _constructions_. In order to use this, the custom class' constructor has to be 
-registered with a serializer (unparser or _stringifier_) and a materializer (parser or deserializer) 
-functions.
-*/
-function entry(identifier, constructor, serializer, materializer) {
-	var r = { 
-		identifier: identifier,
-		constructor: constructor, 
-		serializer: serializer, 
-		materializer: materializer 
-	};
-	Object.freeze(r);
-	return r;
-}
+These are called _constructions_. In order to use them, the custom class' constructor has to be 
+registered with two functions: serializer and materializer. The serializer calculates an array of
+values that will allow to rebuild (i.e. materialize) the instance being serialized (i.e. 
+_stringified_). The materializer creates a new instance based on the previously serialized values.
 
-/** All constructions use a name to identify the type's custom serializer and materializer. Sermat 
-must be able to infer this name from the constructor function of the type. By default the name of 
-the constructor function is used, but this can be overriden by setting a `__SERMAT__` property
-of the function.
+All constructions use a name to identify the type's custom serializer and materializer. Sermat must 
+be able to infer this name from the constructor function of the type. By default the name of the 
+constructor function is used, but this can be overriden by setting a `__SERMAT__` property of the 
+function.
 */
 var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
 	ID_REGEXP = /^[\$A-Z_a-z][\$\-\.\w]*$/;
-function identifier(constructor, must) {
-	var id = (constructor.__SERMAT__ && constructor.__SERMAT__.identifier)
-		|| constructor.name
+function identifier(type, must) {
+	var id = (type.__SERMAT__ && type.__SERMAT__.identifier)
+		|| type.name
 		|| (FUNCTION_ID_RE.exec(constructor +'') || [])[1];
 	if (!id && must) {
-		raise('identifier', "Could not found id for constructor!", { constructorWithoutId: constructor });
+		raise('identifier', "Could not found id for type!", { type: type });
 	}
 	return id;
 }
 
-/** A `record` for a construction can be obtained using its identifier or its constructor function. 
-If a function is given that is not registered, it will be registered if possible.
+/** A `record` for a construction can be obtained using its identifier or the constructor function
+of the type.
 */
-function record(constructor) {
-	if (typeof constructor === 'string') {
-		return this.registry[constructor];
-	} else {
-		var id = identifier(constructor, true),
+function record(type, must) {
+	var id = typeof type === 'function' ? identifier(type, true) : type +'',
 		result = this.registry[id];
-		return result || this.register(constructor);
+	if (!result && must) {
+		raise('record', 'Unknown type "'+ id +'"!', { type: type });
 	}
+	return result;
 }
 
-/** The registry for every custom serializer has three components: an identifier, a serializer 
-(unparser or _stringifier_) function and a materializer (parser or deserializer) function. All of 
-these can be taken from a member of the constructor function called `__SERMAT__`. Else, both the 
-constructor's name is used as identifier and at least the serializer has to be given.
+/** The registry spec for every custom construction usually has four components: an `identifier`, a 
+`type` constructor function, a `serializer` function and a `materializer` function. A `global` flag
+can also be provided, and if true causes the construction to be added to the `Sermat.CONSTRUCTIONS` 
+global registry.
 
-If a materializer function is not specified, it is assumed the serialization is equal to the
-arguments with which the constructor has to be called to recreate the instance. So, a default
-materializer is created, which calls the constructor with the list of values in the text.
+The identifier can be inferred from the constructor function. If a materializer function is not 
+specified, it is assumed the serialization is equal to the arguments with which the constructor has 
+to be called to recreate the instance. So, a default materializer is created, which calls the 
+constructor with the list of values in the text.
 */
-function register(registry, constructor, serializer, materializer) {
-	switch (typeof constructor) {
-		case 'function': break;
-		case 'string': return register(registry, CONSTRUCTIONS[constructor]);
-		case 'object': {
-			if (Array.isArray(constructor)) {
-				return constructor.map(function (c) {
-					return register(registry, c);
-				});
-			} else {
-				return register(registry, constructor.constructor, constructor.serializer, constructor.materializer);
-			}
-		}
-		default: raise('register', "Constructor is not a function!", { invalidConstructor: constructor });
+function register(registry, spec) {
+	if (typeof spec.type !== 'function') {
+		raise('register', 'No constructor found for type ('+ spec +')!', { spec: spec });
 	}
-	
-	var id = identifier(constructor, true);
+	var id = spec.identifier;
+	if (!id) {
+		id = spec.identifier = identifier(spec.type, true);
+	}
 	if (!ID_REGEXP.exec(id)) {
-		raise('register', "Invalid identifier '"+ id +"'!", { invalidId: id });
+		raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
 	}
 	if (registry.hasOwnProperty(id)) {
-		raise('register', "'"+ id +"' is already registered!", { repeatedId: id });
+		raise('register', "'"+ id +"' is already registered!", { spec: spec });
 	}
-	var custom = constructor.__SERMAT__;
-	if (typeof serializer === 'undefined') {
-		serializer = custom && custom.serializer
+	if (typeof spec.serializer !== 'function') {
+		raise('register', "Serializer for '"+ spec.identifier +"' is not a function!", { spec: spec });
 	}
-	if (typeof serializer !== 'function') {
-		raise('register', "Serializer for '"+ id +"' is not a function!", { invalidSerializer: serializer });
+	if (!spec.materializer) {
+		spec.materializer = materializeWithConstructor.bind(this, spec.type);
 	}
-	if (typeof materializer === 'undefined') {
-		materializer = custom && custom.materializer;
-		if (typeof materializer !== 'function') {
-			materializer = materializeWithConstructor.bind(this, constructor);
-		}
+	if (typeof spec.materializer !== 'function') {
+		raise('register', "Materializer for '"+ id +"' is not a function!", { spec: spec });
 	}
-	if (typeof materializer !== 'function') {
-		raise('register', "Materializer for '"+ id +"' is not a function!", { invalidMaterializer: materializer });
+	Object.freeze(spec);
+	registry[id] = spec;
+	if (spec.global && !CONSTRUCTIONS[id]) {
+		CONSTRUCTIONS[id] = spec;
 	}
-	return registry[id] = entry(id, constructor, serializer, materializer);
+	return spec;
 }
 
-/** `materializeWithConstructor` is a generic way of creating a new instance of the given 
-`constructor`. Basically a new object is built using the constructor's prototype, and then the
-constructor is called on this object and the given arguments (`args`) to initialize it.
+/** The `include` method is a more convenient and flexible way of registering custom types. If a 
+name (i.e. a string) is provided, the corresponding entry in `Sermat.CONSTRUCTIONS` will be added.
+If a constructor function is given and it has a `__SERMAT__` member with the type's definitions, 
+then this will be registered. An array with a combination of the previous two types registers all
+members. Lastly, an spec record can be used as well. The method tries not to raise errors. 
+*/
+function include(arg) {
+	var spec = null;
+	switch (typeof arg) {
+		case 'function': {
+			spec = arg.__SERMAT__;
+			if (spec && !this.record(arg)) {
+				spec.type = arg;
+				spec = this.register(spec);
+			}
+			break;
+		}
+		case 'string': {
+			if (CONSTRUCTIONS[arg] && !this.registry[arg]) {
+				spec = this.register(CONSTRUCTIONS[arg]);
+			}
+			break;
+		}
+		case 'object': {
+			if (Array.isArray(arg)) {
+				return arg.map((function (c) {
+					return this.include(c);
+				}).bind(this));
+			} else {
+				spec = arg;
+				if (spec.identifier ? !this.registry[spec.identifier] : !this.record(spec.constructor)) {
+					spec = this.register(spec);
+				}
+			}
+			break;
+		}
+		default: raise('register', "Could not include ("+ arg +")!", { arg: arg });
+	}
+	if (spec && spec.include) {
+		this.include(spec.include);
+	}
+	return spec;
+}
+
+/** `materializeWithConstructor` is a generic way of creating a new instance of the given type
+`constructor`. Basically a new object is built using the type's prototype, and then the constructor 
+is called on this object and the given arguments (`args`) to initialize it.
 
 This method can be used to quickly implement a materializer function when only a call to a 
 constructor function is required. It is the default materialization when no method has been given 
-for a registered constructor.
+for a registered type.
 */
 function materializeWithConstructor(constructor, obj, args) {
 	if (!obj) {
@@ -263,8 +286,8 @@ var serialize = (function () {
 			separated by commas between parenthesis. It ressembles a call to a function in 
 			Javascript.
 		*/
-			var record = ctx.Sermat.record(obj.constructor),
-				args = record.serializer.call(ctx.Sermat, obj),
+			var record = ctx.sermat.record(obj.constructor, true),
+				args = record.serializer.call(ctx.sermat, obj),
 				id = record.identifier;
 			output += (ID_REGEXP.exec(id) ? id : __serializeValue__(id)) +'(';
 			for (i = 0, len = args.length; i < len; i++) {
@@ -277,15 +300,15 @@ var serialize = (function () {
 	}
 
 	return function serialize(obj, modifiers) {
-		modifiers = modifiers || {};
+		modifiers = modifiers || this.modifiers;
 		return __serializeValue__({
-			Sermat: this,
+			sermat: this,
 			visited: [], 
 			parents: [],
 			// Modifiers
-			mode: coalesce(modifiers.mode, this.mode),
-			allowUndefined: coalesce(modifiers.allowUndefined, this.allowUndefined),
-			useConstructions: coalesce(modifiers.useConstructions, this.useConstructions)
+			mode: coalesce(modifiers.mode, this.modifiers.mode),
+			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
+			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
 		}, obj);
 	};
 })();
@@ -343,9 +366,50 @@ var EOL_RE = /\r\n?|\n/g,
 	is always limited to characters from `\x00` and `\xFF`. Second, because the way it is done here 
 	results in less code, even after minimization.
 */
-	PARSE_TABLE = {
-		"0|1":10,"0|13":2,"0|14":4,"0|15":5,"0|16":6,"0|17":7,"0|18":8,"0|19":9,"0|2":11,"0|20":1,"0|3":3,"0|4":13,"0|6":12,"10|11":-10,"10|22":-10,"10|5":-10,"10|7":-10,"10|9":-10,"11|11":-11,"11|22":-11,"11|5":-11,"11|7":-11,"11|9":-11,"12|2":-13,"12|3":-13,"12|7":-13,"13|1":-19,"13|2":-19,"13|3":-19,"13|4":-19,"13|5":-19,"13|6":-19,"14|1":-23,"14|2":-23,"14|3":-23,"14|4":-23,"14|6":-23,"14|9":-23,"15|2":30,"15|3":33,"15|4":32,"15|6":31,"16|10":34,"17|11":-3,"17|22":-3,"17|5":-3,"17|7":-3,"17|9":-3,"18|10":-16,"19|10":-17,"1|22":0,"20|2":19,"20|21":35,"20|3":18,"21|11":-4,"21|22":-4,"21|5":-4,"21|7":-4,"21|9":-4,"22|11":-20,"22|5":-20,"23|11":-5,"23|22":-5,"23|5":-5,"23|7":-5,"23|9":-5,"24|1":10,"24|13":2,"24|14":4,"24|15":5,"24|16":6,"24|17":7,"24|18":8,"24|19":9,"24|2":11,"24|20":36,"24|3":3,"24|4":13,"24|6":12,"25|11":-6,"25|22":-6,"25|5":-6,"25|7":-6,"25|9":-6,"26|11":-24,"26|9":-24,"27|11":-7,"27|22":-7,"27|5":-7,"27|7":-7,"27|9":-7,"28|1":10,"28|13":2,"28|14":4,"28|15":5,"28|16":6,"28|17":7,"28|18":8,"28|19":9,"28|2":11,"28|20":37,"28|3":3,"28|4":13,"28|6":12,"29|11":-8,"29|22":-8,"29|5":-8,"29|7":-8,"29|9":-8,"2|11":-1,"2|22":-1,"2|5":-1,"2|7":-1,"2|9":-1,"30|11":-2,"30|22":-2,"30|5":-2,"30|7":-2,"30|9":-2,"31|2":-12,"31|3":-12,"31|7":-12,"32|1":-18,"32|2":-18,"32|3":-18,"32|4":-18,"32|5":-18,"32|6":-18,"33|8":38,"34|1":10,"34|13":2,"34|14":4,"34|15":5,"34|16":6,"34|17":7,"34|18":8,"34|19":9,"34|2":11,"34|20":39,"34|3":3,"34|4":13,"34|6":12,"35|10":40,"36|11":-21,"36|5":-21,"37|11":-25,"37|9":-25,"38|1":-22,"38|2":-22,"38|3":-22,"38|4":-22,"38|6":-22,"38|9":-22,"39|11":-14,"39|7":-14,"3|11":-9,"3|12":15,"3|22":-9,"3|5":-9,"3|7":-9,"3|8":14,"3|9":-9,"40|1":10,"40|13":2,"40|14":4,"40|15":5,"40|16":6,"40|17":7,"40|18":8,"40|19":9,"40|2":11,"40|20":41,"40|3":3,"40|4":13,"40|6":12,"41|11":-15,"41|7":-15,"4|2":19,"4|21":16,"4|3":18,"4|7":17,"5|11":20,"5|7":21,"6|1":10,"6|13":2,"6|14":4,"6|15":5,"6|16":6,"6|17":7,"6|18":8,"6|19":9,"6|2":11,"6|20":22,"6|3":3,"6|4":13,"6|5":23,"6|6":12,"7|11":24,"7|5":25,"8|1":10,"8|13":2,"8|14":4,"8|15":5,"8|16":6,"8|17":7,"8|18":8,"8|19":9,"8|2":11,"8|20":26,"8|3":3,"8|4":13,"8|6":12,"8|9":27,"9|11":28,"9|9":29
-	},
+	PARSE_TABLE = [
+		[,10,11,3,13,,12,,,,,,,2,4,5,6,7,8,9,1],
+		[,,,,,,,,,,,,,,,,,,,,,,0],
+		[,,,,,-1,,-1,,-1,,-1,,,,,,,,,,,-1],
+		[,,,,,-9,,-9,14,-9,,-9,15,,,,,,,,,,-9],
+		[,,19,18,,,,17,,,,,,,,,,,,,,16],
+		[,,,,,,,21,,,,20],
+		[,10,11,3,13,23,12,,,,,,,2,4,5,6,7,8,9,22],
+		[,,,,,25,,,,,,24],
+		[,10,11,3,13,,12,,,27,,,,2,4,5,6,7,8,9,26],
+		[,,,,,,,,,29,,28],
+		[,,,,,-10,,-10,,-10,,-10,,,,,,,,,,,-10],
+		[,,,,,-11,,-11,,-11,,-11,,,,,,,,,,,-11],
+		[,,-13,-13,,,,-13],
+		[,-19,-19,-19,-19,-19,-19],
+		[,-23,-23,-23,-23,,-23,,,-23],
+		[,,30,33,32,,31],
+		[,,,,,,,,,,34],
+		[,,,,,-3,,-3,,-3,,-3,,,,,,,,,,,-3],
+		[,,,,,,,,,,-16],
+		[,,,,,,,,,,-17],
+		[,,19,18,,,,,,,,,,,,,,,,,,35],
+		[,,,,,-4,,-4,,-4,,-4,,,,,,,,,,,-4],
+		[,,,,,-20,,,,,,-20],
+		[,,,,,-5,,-5,,-5,,-5,,,,,,,,,,,-5],
+		[,10,11,3,13,,12,,,,,,,2,4,5,6,7,8,9,36],
+		[,,,,,-6,,-6,,-6,,-6,,,,,,,,,,,-6],
+		[,,,,,,,,,-24,,-24],
+		[,,,,,-7,,-7,,-7,,-7,,,,,,,,,,,-7],
+		[,10,11,3,13,,12,,,,,,,2,4,5,6,7,8,9,37],
+		[,,,,,-8,,-8,,-8,,-8,,,,,,,,,,,-8],
+		[,,,,,-2,,-2,,-2,,-2,,,,,,,,,,,-2],
+		[,,-12,-12,,,,-12],
+		[,-18,-18,-18,-18,-18,-18],
+		[,,,,,,,,38],
+		[,10,11,3,13,,12,,,,,,,2,4,5,6,7,8,9,39],
+		[,,,,,,,,,,40],
+		[,,,,,-21,,,,,,-21],
+		[,,,,,,,,,-25,,-25],
+		[,-22,-22,-22,-22,,-22,,,-22],
+		[,,,,,,,-14,,,,-14],
+		[,10,11,3,13,,12,,,,,,,2,4,5,6,7,8,9,41],
+		[,,,,,,,-15,,,,-15]
+	],
 /** Parsing a Sermat string literal uses `eval` after escaping all ends of lines.
 */
 	parseString = (function parseString(regexp, replacer, lit) {
@@ -517,13 +581,13 @@ function materialize(text) {
 		var symbol = $num ? 1 : $str ? 2 : $id ? 3 : $sym ? '[]{}():,='.indexOf($sym) + 4 : $err ? 23 /* ERROR */ : 22 /* EOF */,
 			parseAction, action;
 		while (true) {
-			parseAction = PARSE_TABLE[stateStack[stackPointer] +'|'+ symbol];
+			parseAction = PARSE_TABLE[stateStack[stackPointer]][symbol];
 			if (parseAction < 0) {
 				action = ACTIONS[-parseAction];
 				if (action) { // reduce
 					stackPointer += 1 - action[1];
 					valueStack[stackPointer] = action[2].apply(null, valueStack.slice(stackPointer, stackPointer + action[1]));
-					stateStack[stackPointer] = PARSE_TABLE[stateStack[stackPointer - 1] +'|'+ action[0]]; // GOTO action.
+					stateStack[stackPointer] = PARSE_TABLE[stateStack[stackPointer - 1]][action[0]]; // GOTO action.
 					continue;
 				}
 			} else if (parseAction > 0) { // shift
@@ -676,11 +740,16 @@ var CONSTRUCTIONS = {};
 		}
 	]
 ].forEach(function (rec) {
-	var id = identifier(rec[0], true);
-	member(CONSTRUCTIONS, id, entry(id, rec[0], rec[1], rec[2]), 1);
+	var id = identifier(rec[0], true),
+		entry = {
+			identifier: id, 
+			type: rec[0], 
+			serializer: rec[1], 
+			materializer: rec[2]
+		};
+	Object.freeze(entry);
+	member(CONSTRUCTIONS, id, entry, 1);
 });
-
-
 
 
 /** ## Wrap-up #####################################################################################
@@ -689,35 +758,23 @@ Here both `Sermat`'s prototype and singleton are set up.
 */
 function Sermat(params) {
 	var __registry__ = {},
-		__register__ = register.bind(this, __registry__);
+		__register__ = register.bind(this, __registry__),
+		__modifiers__ = {};
 	member(this, 'registry', __registry__);
 	member(this, 'register', __register__);
+	
 	params = params || {};
-	this.mode = coalesce(params.mode, BASIC_MODE);
-	this.allowUndefined = coalesce(params.allowUndefined, false);
-	this.useConstructions = coalesce(params.useConstructions, true);
+	member(this, 'modifiers', __modifiers__);
+	member(__modifiers__, 'allowUndefined', coalesce(params.allowUndefined, false), 5);
+	member(__modifiers__, 'mode', coalesce(params.mode, BASIC_MODE), 5);
+	member(__modifiers__, 'useConstructions', coalesce(params.useConstructions, true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
 		and `Array`, but not `Function`) are always registered. 
 	*/
-	__register__(['Boolean', 'Number', 'String', 'Object', 'Array']);
+	this.include(['Boolean', 'Number', 'String', 'Object', 'Array']);
 }
 
-/** Sermat can be used as a constructor of serializer/materializer components as well as a 
-	singleton. Each instance has a separate registry of constructors.
-*/
-var __SINGLETON__ = new Sermat();
-
-/** The constructions for `Date` and `RegExp` are registered globally. 
-*/
-__SINGLETON__.register(['Date', 'RegExp']);
-
-(function (members) {
-	Object.keys(members).forEach(function (id) {
-		var m = members[id];
-		member(Sermat.prototype, id, m);
-		member(Sermat, id, typeof m === 'function' ? m.bind(__SINGLETON__) : m);
-	});
-})({
+var __members__ = {
 	'BASIC_MODE': BASIC_MODE,
 	'REPEAT_MODE': REPEAT_MODE,
 	'BINDING_MODE': BINDING_MODE,
@@ -726,6 +783,7 @@ __SINGLETON__.register(['Date', 'RegExp']);
 	
 	'identifier': identifier,
 	'record': record,
+	'include': include,
 	
 	'serialize': serialize, 'ser': serialize,
 	'serializeWithProperties': serializeWithProperties,
@@ -739,16 +797,36 @@ __SINGLETON__.register(['Date', 'RegExp']);
 	'sermat': function sermat(obj, modifiers) {
 		return this.mat(this.ser(obj, modifiers));
 	}
+};
+Object.keys(__members__).forEach(function (id) {
+	var m = __members__[id];
+	member(Sermat.prototype, id, m);
 });
+
+/** Sermat can be used as a constructor of serializer/materializer components as well as a 
+	singleton. Each instance has a separate registry of constructors.
+*/
+var __SINGLETON__ = new Sermat();
+
+/** The constructions for `Date` and `RegExp` are registered globally. 
+*/
+__SINGLETON__.include(['Date', 'RegExp']);
+
+Object.keys(__members__).forEach(function (id) {
+	var m = __members__[id];
+	member(Sermat, id, typeof m === 'function' ? m.bind(__SINGLETON__) : m);
+});
+
 member(Sermat, 'registry', __SINGLETON__.registry);
 member(Sermat, 'register', __SINGLETON__.register);
+member(Sermat, 'modifiers', __SINGLETON__.modifiers);
 
-/** Module layout (not frozen in purpose).
+/** Module layout.
 */
 member(Sermat, '__package__', 'sermat');
 member(Sermat, '__name__', 'Sermat');
-Sermat.__init__ = __init__;
-Sermat.__dependencies__ = [];
+member(Sermat, '__init__', __init__, 4);
+member(Sermat, '__dependencies__', [], 4);
 
 /** See __prologue__.js
 */

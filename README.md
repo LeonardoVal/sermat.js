@@ -36,12 +36,12 @@ consistent manner.
 ```javascript
 JSON.stringify(undefined); // Results in undefined
 Sermat.serialize(undefined); // Raises "Sermat.serialize: Cannot serialize undefined value!"
-Sermat.serialize(undefined, Sermat.ALLOW_UNDEFINED); // Results in "null"
+Sermat.serialize(undefined, { allowUndefined: true }); // Results in "null"
 
 JSON.stringify({a:undefined}); // Results in "{}"
-Sermat.serialize({a:undefined}, Sermat.ALLOW_UNDEFINED); // Results in "{a:null}"
+Sermat.serialize({a:undefined}, { allowUndefined: true }); // Results in "{a:null}"
 JSON.stringify([undefined]); // Results in "[null]"
-Sermat.serialize([undefined], Sermat.ALLOW_UNDEFINED); // Results in "[null]"
+Sermat.serialize([undefined], { allowUndefined: true }); // Results in "[null]"
 ```
 
 `Infinity` and `NaN` values are allowed, as well as comments, using the block comment syntax of 
@@ -73,7 +73,7 @@ function Point2D(x, y) {
 	this.x = +x;
 	this.y = +y;
 }
-Sermat.serialize(new Point2D(44, 173)); // Raises "Sermat.serialize: Cannot serialize value!"
+Sermat.serialize(new Point2D(44, 173)); // Raises "Sermat.record: Unknown type \"Point2D\"!"
 Point2D.__SERMAT__ = {
 	identifier: "mylib.Point2D",
 	serializer: function serialize_Point2D(obj) {
@@ -83,7 +83,7 @@ Point2D.__SERMAT__ = {
 		return args && (new Point2D(+args[0], +args[1]));
 	}
 };
-Sermat.register(Point2D);
+Sermat.include(Point2D);
 Sermat.serialize(new Point2D(44, 173)); // Results in: 'mylib.Point2D(44,173)'
 ```
 
@@ -105,7 +105,7 @@ more than once, like JSON does.
 
 ```javascript
 JSON.stringify([obj1, obj1]); // Results in '[{"a":7},{"a":7}]'.
-Sermat.serialize([obj1, obj1], Sermat.ALLOW_REPEATED); // Results in '[{a:7},{a:7}]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.REPEAT_MODE }); // Results in '[{a:7},{a:7}]'.
 ```
 
 The second one is part of another important feature called _bindings_. This is a syntax that allows 
@@ -113,7 +113,7 @@ to bind values to identifiers (starting with `$`) so they can be reused in anoth
 parsed the resulting data structure is an acyclic graph instead of a tree.
 
 ```javascript
-Sermat.serialize([obj1, obj1], Sermat.ALLOW_BINDINGS); // Results in '$0=[$1={a:7},$1]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE }); // Results in '$0=[$1={a:7},$1]'.
 ```
 
 Circular references are not supported by only allowing bindings. To make this work, circular 
@@ -121,8 +121,8 @@ references have to be allowed explicitly.
 
 ```javascript
 obj1.b = obj1;
-Sermat.serialize([obj1, obj1], Sermat.ALLOW_BINDINGS); // Raises "Sermat.serialize: Circular reference detected!"
-Sermat.serialize([obj1, obj1], Sermat.ALLOW_CIRCULAR); // Results in '$0=[$1={a:7,b:$1},$1]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE }); // Raises "Sermat.serialize: Circular reference detected!"
+Sermat.serialize([obj1, obj1], { mode: Sermat.CIRCULAR_MODE }); // Results in '$0=[$1={a:7,b:$1},$1]'.
 ```
 
 Circular reference support in constructions requires the materializer functions to follow this 
@@ -146,11 +146,12 @@ function Refs(refs) {
 	this.refs = Array.isArray(refs) ? refs : refs ? [refs] : [];
 }
 Refs.ALLOW_EMPTY_INSTANCES = false;
-Sermat.register(Refs, 
-	function serialize_Refs(obj) {
+Sermat.register({
+	type: Refs, 
+	serializer: function serialize_Refs(obj) {
 		return obj.refs;
 	},
-	function materialize_Refs(obj, args) {
+	materializer: function materialize_Refs(obj, args) {
 		if (args === null) {
 			return Refs.ALLOW_EMPTY_INSTANCES ? (new Refs()) : null; 
 		} else if (obj !== null) {
@@ -160,12 +161,13 @@ Sermat.register(Refs,
 			return new Refs(args);
 		}
 	}
-);
+});
 var refs1 = new Refs(obj1);
 refs1.refs.push(refs1);
-Sermat.sermat(refs1, Sermat.ALLOW_CIRCULAR); // Raises "Sermat.materialize: '$xx' is not bound at ...!".
+Sermat.mode = Sermat.CIRCULAR_MODE;
+Sermat.sermat(refs1); // Raises "Sermat.materialize: '$xx' is not bound at ...!".
 Refs.ALLOW_EMPTY_INSTANCES = true;
-Sermat.sermat(refs1, Sermat.ALLOW_CIRCULAR); // Returns a copy of refs1.
+Sermat.sermat(refs1); // Returns a copy of refs1.
 ```
 
 ## License
