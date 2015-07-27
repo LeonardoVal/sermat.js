@@ -134,8 +134,13 @@ var CONSTRUCTIONS = {};
 		}
 	]
 ].forEach(function (rec) {
-	var id = identifier(rec[0], true);
-	member(CONSTRUCTIONS, id, entry(id, rec[0], rec[1], rec[2]), 1);
+	var id = identifier(rec[0], true),
+		entry = {
+			identifier: id, 
+			type: rec[0], 
+			serializer: rec[1], 
+			materializer: rec[2]
+		};
+	Object.freeze(entry);
+	member(CONSTRUCTIONS, id, entry, 1);
 });
-
-
