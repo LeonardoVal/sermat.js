@@ -108,8 +108,8 @@ var serialize = (function () {
 			separated by commas between parenthesis. It ressembles a call to a function in 
 			Javascript.
 		*/
-			var record = ctx.Sermat.record(obj.constructor),
-				args = record.serializer.call(ctx.Sermat, obj),
+			var record = ctx.sermat.record(obj.constructor, true),
+				args = record.serializer.call(ctx.sermat, obj),
 				id = record.identifier;
 			output += (ID_REGEXP.exec(id) ? id : __serializeValue__(id)) +'(';
 			for (i = 0, len = args.length; i < len; i++) {
@@ -122,15 +122,15 @@ var serialize = (function () {
 	}
 
 	return function serialize(obj, modifiers) {
-		modifiers = modifiers || {};
+		modifiers = modifiers || this.modifiers;
 		return __serializeValue__({
-			Sermat: this,
+			sermat: this,
 			visited: [], 
 			parents: [],
 			// Modifiers
-			mode: coalesce(modifiers.mode, this.mode),
-			allowUndefined: coalesce(modifiers.allowUndefined, this.allowUndefined),
-			useConstructions: coalesce(modifiers.useConstructions, this.useConstructions)
+			mode: coalesce(modifiers.mode, this.modifiers.mode),
+			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
+			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
 		}, obj);
 	};
 })();
