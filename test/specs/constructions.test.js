@@ -29,12 +29,13 @@
 			this.x = +x;
 			this.y = +y;
 		}
-		Point2D.__SERMAT__ = { id: "Point2D",
+		Point2D.__SERMAT__ = {
+			identifier: "Point2D",
 			serializer: function serializer(value) {
 				return [value.x, value.y];
 			}
 		}
-		Sermat.register(Point2D);
+		Sermat.include(Point2D);
 		
 		[new Point2D(3, 77), new Point2D(2.95, Infinity), new Point2D(52)
 		].forEach(function (p1) {
@@ -51,9 +52,12 @@
 			this.head = head || null;
 			this.tail = tail || null;
 		}
-		Sermat.register(Cons, function serializer(value) {
-			return [value.head, value.tail];
-		}/*, <default materializer> */);
+		Sermat.register({ 
+			type: Cons, 
+			serializer: function serializer(value) {
+				return [value.head, value.tail];
+			}/*, <default materializer> */
+		});
 		
 		[new Cons(), new Cons(1), new Cons(1, new Cons(2)), new Cons(1, new Cons(2, new Cons(3)))
 		].forEach(function (x1) {
@@ -78,7 +82,7 @@
 				return value.refs;
 			}
 		};
-		Sermat.register(Ref);
+		Sermat.include(Ref);
 		
 		var r1 = new Ref(), r2 = new Ref(r1, r1), r3;
 		expect(Sermat.ser.bind(Sermat, r2)).toThrow();
