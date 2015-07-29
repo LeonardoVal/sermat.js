@@ -141,11 +141,10 @@ function include(arg) {
 				return arg.map((function (c) {
 					return this.include(c);
 				}).bind(this));
+			} else if (typeof arg.type === 'function' && !this.record(arg.identifier || arg.type)) {
+				spec = this.register(arg);
 			} else {
-				spec = arg;
-				if (spec.identifier ? !this.registry[spec.identifier] : !this.record(spec.constructor)) {
-					spec = this.register(spec);
-				}
+				spec = arg && arg.__SERMAT__;
 			}
 			break;
 		}

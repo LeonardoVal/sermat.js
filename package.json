@@ -2,7 +2,7 @@
 	"name": "sermat",
 	"description": "Sermat is a serialization format, similar to JSON.",
 	"keywords": [ "data format", "marshalling", "serialization" ],
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"author": {
 		"name": "Leonardo Val",
 		"email": "leonardo.val@creatartis.com"
