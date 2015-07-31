@@ -32,7 +32,7 @@ var __members__ = {
 	'include': include,
 	
 	'serialize': serialize, 'ser': serialize,
-	'serializeWithProperties': serializeWithProperties,
+	'serializeAsProperties': serializeAsProperties,
 	
 	'materialize': materialize, 'mat': materialize,
 	'construct': construct,
@@ -40,9 +40,7 @@ var __members__ = {
 	'signature': signature, 'checkSignature': checkSignature,
 	'materializeWithConstructor': materializeWithConstructor,
 	
-	'sermat': function sermat(obj, modifiers) {
-		return this.mat(this.ser(obj, modifiers));
-	}
+	'sermat': sermat
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];

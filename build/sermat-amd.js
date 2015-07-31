@@ -156,25 +156,6 @@ function include(arg) {
 	return spec;
 }
 
-/** `materializeWithConstructor` is a generic way of creating a new instance of the given type
-`constructor`. Basically a new object is built using the type's prototype, and then the constructor 
-is called on this object and the given arguments (`args`) to initialize it.
-
-This method can be used to quickly implement a materializer function when only a call to a 
-constructor function is required. It is the default materialization when no method has been given 
-for a registered type.
-*/
-function materializeWithConstructor(constructor, obj, args) {
-	if (!obj) {
-		obj = Object.create(constructor.prototype);
-		if (!args) {
-			return obj;
-		}
-	}
-	constructor.apply(obj, args);
-	return obj;
-}
-
 /** ## Serialization ###############################################################################
 
 Serialization is similar to JSON's `stringify` method. The method takes a data structure and 
@@ -311,20 +292,6 @@ var serialize = (function () {
 		}, obj);
 	};
 })();
-
-/** `serializeWithProperties` is a generic way of serializing an object, by creating another object 
-with some of its properties. This method can be used to quickly implement a serializer function when 
-the constructor of the type can be called with an object.
-*/
-function serializeWithProperties(obj, properties) {
-	var result = {}, 
-		name;
-	for (var i = 0, len = properties.length; i < len; i++) {
-		name = properties[i];
-		result[name] = obj[name];
-	}
-	return [result];
-}
 
 /** ## Materialization #############################################################################
 
@@ -603,6 +570,53 @@ function materialize(text) {
 	return result;
 }
 
+/** ## Utilities ###################################################################################
+
+*/
+
+/** `serializeAsProperties` is a generic way of serializing an object, by creating another object 
+with some of its properties. This method can be used to quickly implement a serializer function when 
+the constructor of the type can be called with an object.
+*/
+function serializeAsProperties(obj, properties) {
+	var result = {};
+	if (Array.isArray(properties)) {
+		properties.forEach(function (k) {
+			result[k] = obj[k];
+		});
+	} else {
+		Object.keys(properties).forEach(function (k) {
+			result[k] = obj[properties[k]];
+		});
+	}
+	return [result];
+}
+
+/** `materializeWithConstructor` is a generic way of creating a new instance of the given type
+`constructor`. Basically a new object is built using the type's prototype, and then the constructor 
+is called on this object and the given arguments (`args`) to initialize it.
+
+This method can be used to quickly implement a materializer function when only a call to a 
+constructor function is required. It is the default materialization when no method has been given 
+for a registered type.
+*/
+function materializeWithConstructor(constructor, obj, args) {
+	if (!obj) {
+		obj = Object.create(constructor.prototype);
+		if (!args) {
+			return obj;
+		}
+	}
+	constructor.apply(obj, args);
+	return obj;
+}
+
+/** `sermat` is a shortcut to materialize a serialization of a value, e.g. to clone the value. 
+*/
+function sermat(obj, modifiers) {
+	return this.mat(this.ser(obj, modifiers));
+}
+
 /** ## Constructions for Javascript types ##########################################################
 
 One of Sermat's most important features is extensible handling of custom types. But the library 
@@ -785,7 +799,7 @@ var __members__ = {
 	'include': include,
 	
 	'serialize': serialize, 'ser': serialize,
-	'serializeWithProperties': serializeWithProperties,
+	'serializeAsProperties': serializeAsProperties,
 	
 	'materialize': materialize, 'mat': materialize,
 	'construct': construct,
@@ -793,9 +807,7 @@ var __members__ = {
 	'signature': signature, 'checkSignature': checkSignature,
 	'materializeWithConstructor': materializeWithConstructor,
 	
-	'sermat': function sermat(obj, modifiers) {
-		return this.mat(this.ser(obj, modifiers));
-	}
+	'sermat': sermat
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];

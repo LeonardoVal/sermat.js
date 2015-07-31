@@ -125,22 +125,3 @@ function include(arg) {
 	}
 	return spec;
 }
-
-/** `materializeWithConstructor` is a generic way of creating a new instance of the given type
-`constructor`. Basically a new object is built using the type's prototype, and then the constructor 
-is called on this object and the given arguments (`args`) to initialize it.
-
-This method can be used to quickly implement a materializer function when only a call to a 
-constructor function is required. It is the default materialization when no method has been given 
-for a registered type.
-*/
-function materializeWithConstructor(constructor, obj, args) {
-	if (!obj) {
-		obj = Object.create(constructor.prototype);
-		if (!args) {
-			return obj;
-		}
-	}
-	constructor.apply(obj, args);
-	return obj;
-}

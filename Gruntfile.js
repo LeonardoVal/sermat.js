@@ -5,6 +5,7 @@ var sourceFiles = [
 	'src/registry.js',
 	'src/serialization.js',
 	'src/materialization.js',
+	'src/utilities.js',
 	'src/constructions.js',
 	'src/wrapup.js',
 	'src/__epilogue__.js'

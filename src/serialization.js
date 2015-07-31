@@ -134,17 +134,3 @@ var serialize = (function () {
 		}, obj);
 	};
 })();
-
-/** `serializeWithProperties` is a generic way of serializing an object, by creating another object 
-with some of its properties. This method can be used to quickly implement a serializer function when 
-the constructor of the type can be called with an object.
-*/
-function serializeWithProperties(obj, properties) {
-	var result = {}, 
-		name;
-	for (var i = 0, len = properties.length; i < len; i++) {
-		name = properties[i];
-		result[name] = obj[name];
-	}
-	return [result];
-}
