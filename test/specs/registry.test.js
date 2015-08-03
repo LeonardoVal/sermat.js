@@ -53,16 +53,21 @@
 		sermat2.include(Rect2D);
 		expect(sermat2.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
 		
-		var sermat3 = new Sermat();
+		var sermat3 = new Sermat({ autoInclude: false });
 		Point2D.__SERMAT__ = Point2D__SERMAT__();
 		Rect2D.__SERMAT__ = Rect2D__SERMAT__();
 		sermat3.include(Rect2D);
 		expect(sermat3.ser.bind(sermat3, rect1)).toThrow();
 		
-		var sermat4 = new Sermat();
+		var sermat4 = new Sermat({ autoInclude: false });
 		Point2D.__SERMAT__ = Point2D__SERMAT__();
 		Rect2D.__SERMAT__ = Rect2D__SERMAT__({ include: [Point2D] });
 		sermat4.include({ __SERMAT__: { include: [Rect2D] } });
+		expect(sermat4.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
+		
+		var sermat5 = new Sermat({ autoInclude: true });
+		Point2D.__SERMAT__ = Point2D__SERMAT__();
+		Rect2D.__SERMAT__ = Rect2D__SERMAT__();
 		expect(sermat4.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
 	});
 }); //// describe "Sermat".

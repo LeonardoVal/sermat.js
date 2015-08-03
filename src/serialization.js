@@ -50,7 +50,12 @@ var serialize = (function () {
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return '"'+ value.replace(/[\\\"]/g, '\\$&') +'"';
-			case 'function': // Works if `Function` is registered
+			case 'function': {
+				var record = ctx.record(value);
+				if (record) {
+					return record.identifier;
+				} // else continue to object, using Function's serializer if it is registered. 
+			}
 			case 'object': return __serializeObject__(ctx, value);
 		}
 	}
@@ -108,8 +113,11 @@ var serialize = (function () {
 			separated by commas between parenthesis. It ressembles a call to a function in 
 			Javascript.
 		*/
-			var record = ctx.sermat.record(obj.constructor, true),
-				args = record.serializer.call(ctx.sermat, obj),
+			var record = ctx.record(obj.constructor) || ctx.autoInclude && ctx.include(obj.constructor);
+			if (!record) {
+				raise('serialize', 'Unknown type "'+ ctx.sermat.identifier(obj.constructor) +'"!', { unknownType: obj });
+			}
+			var args = record.serializer.call(ctx.sermat, obj),
 				id = record.identifier;
 			output += (ID_REGEXP.exec(id) ? id : __serializeValue__(id)) +'(';
 			for (i = 0, len = args.length; i < len; i++) {
@@ -124,12 +132,15 @@ var serialize = (function () {
 	return function serialize(obj, modifiers) {
 		modifiers = modifiers || this.modifiers;
 		return __serializeValue__({
-			sermat: this,
 			visited: [], 
 			parents: [],
+			sermat: this,
+			record: this.record.bind(this),
+			include: this.include.bind(this),
 			// Modifiers
 			mode: coalesce(modifiers.mode, this.modifiers.mode),
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
+			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
 			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
 		}, obj);
 	};

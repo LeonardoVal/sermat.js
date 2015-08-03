@@ -11,13 +11,15 @@ function Sermat(params) {
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
-	member(__modifiers__, 'allowUndefined', coalesce(params.allowUndefined, false), 5);
 	member(__modifiers__, 'mode', coalesce(params.mode, BASIC_MODE), 5);
+	member(__modifiers__, 'allowUndefined', coalesce(params.allowUndefined, false), 5);
+	member(__modifiers__, 'autoInclude', coalesce(params.autoInclude, true), 5);
 	member(__modifiers__, 'useConstructions', coalesce(params.useConstructions, true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
-		and `Array`, but not `Function`) are always registered. 
+		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
+		supported by default.
 	*/
-	this.include(['Boolean', 'Number', 'String', 'Object', 'Array']);
+	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
 }
 
 var __members__ = {

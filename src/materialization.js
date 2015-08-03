@@ -94,23 +94,26 @@ function materialize(text) {
 		and the `valueStack` for intermediate values. Bindings are used to resolve all values that
 		appear as words (`true`, `null`, etc.).
 	*/
-	var valueStack = new Array(50), 
+	var construct = this.construct.bind(this),
+		valueStack = new Array(50), 
 		stateStack = new Array(50), 
 		stackPointer = 0,
-		construct = this.construct.bind(this),
 		bindings = { 'true': true, 'false': false, 'null': null, 'NaN': NaN, 'Infinity': Infinity },
 		offset, result;
 	stateStack[0] = 0;
 
 	/** Unbound identifiers showing in the text always raise an error. Also, values cannot be rebound.
 	*/
-	function getBind(id) {
+	var getBind = (function (id) {
 		var value = bindings[id];
 		if (typeof value === 'undefined') {
-			parseError("'"+ id +"' is not bound", { unboundId: id });	
+			value = (value = this.registry[id]) && value.type;
+			if (!value) {
+				parseError("'"+ id +"' is not bound", { unboundId: id });
+			}
 		}
 		return value;
-	}
+	}).bind(this);
 
 	function setBind(id, value) {
 		if (id.charAt(0) != '$') {
@@ -151,7 +154,7 @@ function materialize(text) {
 			if ($1[2] && obj !== $1[2]) {
 				parseError("Object initialization for "+ $1[1] +" failed", { oldValue: $1[2], newValue: obj });
 			}
-			return $1[0] ? this.setBind($1[0], obj) : obj;
+			return $1[0] ? setBind($1[0], obj) : obj;
 		}
 		return [null, // ACCEPT
 		// `value : atom ;`
