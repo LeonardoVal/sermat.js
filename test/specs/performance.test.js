@@ -109,7 +109,7 @@
 	(function () {
 		for (var min = 0; min < 4; min++) {
 			for (var max = min; max < min + 4; max++) {
-				for (var i = 0; i < 30; i++) {
+				for (var i = 0; i < 50; i++) {
 					STRUCTURE_TEST_CASES.push(randomValue(min, max));
 				}
 			}

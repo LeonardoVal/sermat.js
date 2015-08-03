@@ -106,6 +106,8 @@ module.exports = function(grunt) {
 				configFile: 'test/karma.conf.js'
 			},
 			test_phantom: { browsers: ['PhantomJS'] },
+			test_chrome: { browsers: ['Chrome'] },
+			test_firefox: { browsers: ['Firefox'] }
 		},
 		docker: { //////////////////////////////////////////////////////////////////////////////////
 			document: {
@@ -132,6 +134,8 @@ module.exports = function(grunt) {
 		'concat:build_umd', 'uglify:build_umd'
 	]); 
 	grunt.registerTask('test', ['compile', 'karma:test_phantom']);
+	grunt.registerTask('full_test', ['compile', 
+		'karma:test_phantom', 'karma:test_chrome', 'karma:test_firefox']);
 	grunt.registerTask('build', ['test', 'docker:document']);
 	grunt.registerTask('default', ['build']);
 };
