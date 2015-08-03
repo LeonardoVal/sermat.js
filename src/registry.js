@@ -33,13 +33,9 @@ function identifier(type, must) {
 /** A `record` for a construction can be obtained using its identifier or the constructor function
 of the type.
 */
-function record(type, must) {
-	var id = typeof type === 'function' ? identifier(type, true) : type +'',
-		result = this.registry[id];
-	if (!result && must) {
-		raise('record', 'Unknown type "'+ id +'"!', { type: type });
-	}
-	return result;
+function record(type) {
+	var id = typeof type === 'function' ? identifier(type, true) : type +'';
+	return this.registry[id];
 }
 
 /** The registry spec for every custom construction usually has four components: an `identifier`, a 
@@ -80,6 +76,9 @@ function register(registry, spec) {
 	if (spec.global && !CONSTRUCTIONS[id]) {
 		CONSTRUCTIONS[id] = spec;
 	}
+	if (spec.include) {
+		this.include(spec.include);
+	}
 	return spec;
 }
 
@@ -93,35 +92,31 @@ function include(arg) {
 	var spec = null;
 	switch (typeof arg) {
 		case 'function': {
-			spec = arg.__SERMAT__;
-			if (spec && !this.record(arg)) {
-				spec.type = arg;
-				spec = this.register(spec);
+			spec = this.record(arg);
+			if (!spec && arg.__SERMAT__) {
+				arg.__SERMAT__.type = arg;
+				spec = this.register(arg.__SERMAT__);
 			}
-			break;
+			return spec;
 		}
 		case 'string': {
-			if (CONSTRUCTIONS[arg] && !this.registry[arg]) {
+			spec = this.record(arg);
+			if (!spec && CONSTRUCTIONS[arg]) {
 				spec = this.register(CONSTRUCTIONS[arg]);
 			}
-			break;
+			return spec;
 		}
 		case 'object': {
 			if (Array.isArray(arg)) {
 				return arg.map((function (c) {
 					return this.include(c);
 				}).bind(this));
-			} else if (typeof arg.type === 'function' && !this.record(arg.identifier || arg.type)) {
-				spec = this.register(arg);
-			} else {
-				spec = arg && arg.__SERMAT__;
+			} else if (typeof arg.type === 'function') {
+				return this.record(arg.identifier || arg.type) || this.register(arg);
+			} else if (arg && arg.__SERMAT__ && arg.__SERMAT__.include) {
+				return this.include(arg.__SERMAT__.include);
 			}
-			break;
 		}
-		default: raise('register', "Could not include ("+ arg +")!", { arg: arg });
+		default: raise('include', "Could not include ("+ arg +")!", { arg: arg });
 	}
-	if (spec && spec.include) {
-		this.include(spec.include);
-	}
-	return spec;
 }
