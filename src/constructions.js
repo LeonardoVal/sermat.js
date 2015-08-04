@@ -70,7 +70,7 @@ var CONSTRUCTIONS = {};
 			return [value];
 		},
 		function materialize_Object(obj, args) {
-			return args && args[0];
+			return args && Object.apply(null, args);
 		}
 	],
 	[Array,
