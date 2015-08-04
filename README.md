@@ -34,14 +34,21 @@ error, unless explicitly permitted. In that case `undefined` will be transformed
 consistent manner. 
 
 ```javascript
-JSON.stringify(undefined); // Results in undefined
-Sermat.serialize(undefined); // Raises "Sermat.serialize: Cannot serialize undefined value!"
-Sermat.serialize(undefined, { allowUndefined: true }); // Results in "null"
+JSON.stringify(undefined);
+// Results in undefined
+Sermat.serialize(undefined);
+// Raises "Sermat.serialize: Cannot serialize undefined value!"
+Sermat.serialize(undefined, { allowUndefined: true });
+// Results in "null"
 
-JSON.stringify({a:undefined}); // Results in "{}"
-Sermat.serialize({a:undefined}, { allowUndefined: true }); // Results in "{a:null}"
-JSON.stringify([undefined]); // Results in "[null]"
-Sermat.serialize([undefined], { allowUndefined: true }); // Results in "[null]"
+JSON.stringify({ a: undefined });
+// Results in "{}"
+Sermat.serialize({ a: undefined }, { allowUndefined: true });
+// Results in "{a:null}"
+JSON.stringify([undefined]);
+// Results in "[null]"
+Sermat.serialize([undefined], { allowUndefined: true });
+// Results in "[null]"
 ```
 
 `Infinity` and `NaN` values are allowed, as well as comments, using the block comment syntax of 
@@ -59,8 +66,10 @@ materializing objects built with a given constructor (e.g. `Date`). These object
 in text form in a similar way a function call is written in Javascript.
 
 ```javascript
-Sermat.serialize(new Date()); // Results like this: 'Date(2015,6,5,6,33,47,123)'.
-Sermat.serialize(/\d+/g); // Results in: 'RegExp("\\\\d+","g")'.
+Sermat.serialize(new Date());
+// Results like this: 'Date(2015,6,5,6,33,47,123)'.
+Sermat.serialize(/\d+/g);
+// Results in: 'RegExp("\\\\d+","g")'.
 ```
 
 When parsed, the result will be a properly initialized instance of the corresponding type. Some 
@@ -97,15 +106,18 @@ a component in more than one place causes an error. For example:
 
 ```javascript
 var obj1 = {a: 7};
-Sermat.serialize([obj1, obj1]); // Raises "Sermat.serialize: Repeated reference detected!"
+Sermat.serialize([obj1, obj1]);
+// Raises "Sermat.serialize: Repeated reference detected!"
 ```
 
 This behaviour can be changed in two ways. The first one is simply to allow values to be serialized 
 more than once, like JSON does. 
 
 ```javascript
-JSON.stringify([obj1, obj1]); // Results in '[{"a":7},{"a":7}]'.
-Sermat.serialize([obj1, obj1], { mode: Sermat.REPEAT_MODE }); // Results in '[{a:7},{a:7}]'.
+JSON.stringify([obj1, obj1]);
+// Results in '[{"a":7},{"a":7}]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.REPEAT_MODE });
+// Results in '[{a:7},{a:7}]'.
 ```
 
 The second one is part of another important feature called _bindings_. This is a syntax that allows 
@@ -113,7 +125,8 @@ to bind values to identifiers (starting with `$`) so they can be reused in anoth
 parsed the resulting data structure is an acyclic graph instead of a tree.
 
 ```javascript
-Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE }); // Results in '$0=[$1={a:7},$1]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE });
+// Results in '$0=[$1={a:7},$1]'.
 ```
 
 Circular references are not supported by only allowing bindings. To make this work, circular 
@@ -121,8 +134,10 @@ references have to be allowed explicitly.
 
 ```javascript
 obj1.b = obj1;
-Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE }); // Raises "Sermat.serialize: Circular reference detected!"
-Sermat.serialize([obj1, obj1], { mode: Sermat.CIRCULAR_MODE }); // Results in '$0=[$1={a:7,b:$1},$1]'.
+Sermat.serialize([obj1, obj1], { mode: Sermat.BINDING_MODE });
+// Raises "Sermat.serialize: Circular reference detected!"
+Sermat.serialize([obj1, obj1], { mode: Sermat.CIRCULAR_MODE });
+// Results in '$0=[$1={a:7,b:$1},$1]'.
 ```
 
 Circular reference support in constructions requires the materializer functions to follow this 
