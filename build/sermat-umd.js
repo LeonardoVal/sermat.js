@@ -90,10 +90,15 @@ function register(registry, spec) {
 	if (typeof spec.type !== 'function') {
 		raise('register', 'No constructor found for type ('+ spec +')!', { spec: spec });
 	}
+	spec = {
+		identifier: spec.identifier || identifier(spec.type, true),
+		type: spec.type,
+		serializer: spec.serializer,
+		materializer: spec.materializer || materializeWithConstructor.bind(this, spec.type),
+		global: !!spec.global,
+		include: spec.include
+	};
 	var id = spec.identifier;
-	if (!id) {
-		id = spec.identifier = identifier(spec.type, true);
-	}
 	if (!ID_REGEXP.exec(id)) {
 		raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
 	}
@@ -101,10 +106,7 @@ function register(registry, spec) {
 		raise('register', "'"+ id +"' is already registered!", { spec: spec });
 	}
 	if (typeof spec.serializer !== 'function') {
-		raise('register', "Serializer for '"+ spec.identifier +"' is not a function!", { spec: spec });
-	}
-	if (!spec.materializer) {
-		spec.materializer = materializeWithConstructor.bind(this, spec.type);
+		raise('register', "Serializer for '"+ id +"' is not a function!", { spec: spec });
 	}
 	if (typeof spec.materializer !== 'function') {
 		raise('register', "Materializer for '"+ id +"' is not a function!", { spec: spec });
