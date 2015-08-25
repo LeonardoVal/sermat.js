@@ -107,10 +107,7 @@ function materialize(text) {
 	var getBind = (function (id) {
 		var value = bindings[id];
 		if (typeof value === 'undefined') {
-			value = (value = this.registry[id]) && value.type;
-			if (!value) {
-				parseError("'"+ id +"' is not bound", { unboundId: id });
-			}
+			parseError("'"+ id +"' is not bound", { unboundId: id });
 		}
 		return value;
 	}).bind(this);

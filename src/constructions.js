@@ -4,20 +4,23 @@ One of Sermat's most important features is extensible handling of custom types. 
 provides some implementations for some of Javascript's base types.
 */
 
-/** A value's `type` is a string. It is equal to `typeof value` if this is not `'object'`. In that
-	case it can be the empty string (for `null`) or the name of the value's constructor.
-*/
-function type(value) {
-	var t = typeof value;
-	return t === 'object' ? (value ? identifier(value.constructor) : '') : t; 
-}
+/** The `signature` function builds a string representing the types of the arguments (separated by
+comma). For each value it is equal to `typeof value` if is not `'object'`, the empty string (for 
+`null`) or the name of the value's constructor.
 
-/** The `signature` function builds a string with a comma separated list of the types of the `obj`
-	and the `args`. It can be used to quickly check a call to a materializer using a regular 
-	expression.
+It can be used to quickly check a call to a materializer using a regular expression.
 */
-function signature(obj, args) {
-	return type(obj) +','+ args.map(type).join(',');
+function signature() {
+	var r = "", t, v;
+	for (var i = 0; i < arguments.length; i++) {
+		v = arguments[i];
+		t = typeof v;
+		if (i) {
+			r += ',';
+		}
+		r += t === 'object' ? (v ? identifier(v.constructor) : '') : t;
+	}
+	return r;
 }
 
 /** The `checkSignature` function checks the types of a call to a materializer using a regular
@@ -25,7 +28,7 @@ function signature(obj, args) {
 	materializer functions more secure.
 */
 function checkSignature(id, regexp, obj, args) {
-	var types = signature(obj, args);
+	var types = signature.apply(this, [obj].concat(args));
 	if (!regexp.exec(types)) {
 		raise('checkSignature', "Wrong arguments for construction of "+ id +" ("+ types +")!", 
 			{ id: id, obj: obj, args: args });
@@ -33,7 +36,8 @@ function checkSignature(id, regexp, obj, args) {
 	return true;
 }
 
-/** `Sermat.CONSTRUCTIONS` has default implementations for Javascript's base types.
+/** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first 
+it includes some implementations for Javascript's base types.
 */
 var CONSTRUCTIONS = {};
 [
@@ -107,7 +111,8 @@ var CONSTRUCTIONS = {};
 	[Date,
 		function serialize_Date(value) {
 			return [value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
-				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), value.getUTCMilliseconds()];
+				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), 
+				value.getUTCMilliseconds()];
 		},
 		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
 			return args 
@@ -134,13 +139,42 @@ var CONSTRUCTIONS = {};
 		}
 	]
 ].forEach(function (rec) {
-	var id = identifier(rec[0], true),
-		entry = {
-			identifier: id, 
-			type: rec[0], 
-			serializer: rec[1], 
-			materializer: rec[2]
-		};
-	Object.freeze(entry);
-	member(CONSTRUCTIONS, id, entry, 1);
+	var id = identifier(rec[0], true);
+	member(CONSTRUCTIONS, id, Object.freeze({
+		identifier: id,
+		type: rec[0],
+		serializer: rec[1], 
+		materializer: rec[2]
+	}), 1);
 });
+
+/** The pseudoconstruction `type` is used to serialize references to constructor functions of 
+registered types. For example, `type(Date)` materializes to the `Date` function.
+*/
+function type(f) {
+	this.typeConstructor = f;
+}
+
+member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({
+	identifier: 'type',
+	type: type,
+	serializer: function serialize_type(value) {
+		var rec = this.record(value.typeConstructor);
+		if (!rec) {
+			raise('serialize_type', "Unknown type \""+ identifier(value.typeConstructor) +"\"!", { type: value.typeConstructor });
+		} else {
+			return [rec.identifier];
+		}
+	},
+	materializer: function materialize_type(obj, args) {
+		if (!args) {
+			return null;
+		} else if (checkSignature('type', /^,string$/, obj, args)) {
+			var rec = this.record(args[0]);
+			if (rec) {
+				return rec.type;
+			}
+		}
+		raise('materialize_type', "Cannot materialize construction for type("+ args +")!", { args: args });
+	}
+}), 1);

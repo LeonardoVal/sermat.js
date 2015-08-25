@@ -110,4 +110,14 @@
 		expect(r3.refs[0]).not.toBe(r3.refs[1]);
 		expect(r3.refs[1]).toBe(r3);
 	});
+	
+	it("with types.", function () { ////////////////////////////////////////////////////////////////
+		expect(typeof Sermat.CONSTRUCTIONS.type).toBe('object');
+		var sermat1 = new Sermat();
+		expect(typeof sermat1.serializeAsType).toBe('function');
+		expect(sermat1.ser(sermat1.serializeAsType(Object))).toBe('type("Object")');
+		expect(sermat1.mat('type("Number")')).toBe(Number);
+		expect(sermat1.sermat(sermat1.serializeAsType(String))).toBe(String);
+		expect(sermat1.ser(sermat1.serializeAsType(Sermat.CONSTRUCTIONS.type.type))).toBe('type("type")');
+	});
 }); //// describe "Sermat".

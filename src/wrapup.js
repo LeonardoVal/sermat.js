@@ -4,10 +4,10 @@ Here both `Sermat`'s prototype and singleton are set up.
 */
 function Sermat(params) {
 	var __registry__ = {},
-		__register__ = register.bind(this, __registry__),
 		__modifiers__ = {};
 	member(this, 'registry', __registry__);
-	member(this, 'register', __register__);
+	member(this, 'register', register.bind(this, __registry__));
+	member(this, 'remove', remove.bind(this, __registry__));
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
@@ -19,7 +19,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp type'.split(' '));
 }
 
 var __members__ = {
@@ -32,14 +32,15 @@ var __members__ = {
 	'identifier': identifier,
 	'record': record,
 	'include': include,
+	'exclude': exclude,
 	
 	'serialize': serialize, 'ser': serialize,
 	'serializeAsProperties': serializeAsProperties,
 	
 	'materialize': materialize, 'mat': materialize,
 	'construct': construct,
-	'type': type,
 	'signature': signature, 'checkSignature': checkSignature,
+	'serializeAsType': serializeAsType,
 	'materializeWithConstructor': materializeWithConstructor,
 	
 	'sermat': sermat
@@ -63,9 +64,9 @@ Object.keys(__members__).forEach(function (id) {
 	member(Sermat, id, typeof m === 'function' ? m.bind(__SINGLETON__) : m);
 });
 
-member(Sermat, 'registry', __SINGLETON__.registry);
-member(Sermat, 'register', __SINGLETON__.register);
-member(Sermat, 'modifiers', __SINGLETON__.modifiers);
+['registry', 'register', 'remove', 'modifiers'].forEach(function (id) {
+	member(Sermat, id, __SINGLETON__[id]);
+});
 
 /** Module layout.
 */

@@ -15,11 +15,11 @@ the functions behaviour. The most important one is perhaps `mode`.
 
 + `BINDING_MODE`: Every object inside the given value is given an identifier. If any one of these
 	is visited twice or more, a reference to the first serialization is generated using this 
-	identifier. Yet, circular references are forbidden. The materialization actually reuses 
-	instances.
+	identifier. The materialization actually reuses instances, though circular references are still 
+	forbidden.
 
 + `CIRCULAR_MODE`: Similar to `BINDING_MODE`, except that circular references are allowed. This
-	still depends on the constructions materializers supporting circular references.
+	still depends on the constructions' materializers supporting circular references.
 */
 var BASIC_MODE = 0,
 	REPEAT_MODE = 1,
@@ -50,12 +50,7 @@ var serialize = (function () {
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return '"'+ value.replace(/[\\\"]/g, '\\$&') +'"';
-			case 'function': {
-				var record = ctx.record(value);
-				if (record) {
-					return record.identifier;
-				} // else continue to object, using Function's serializer if it is registered. 
-			}
+			case 'function': // Continue to object, using Function's serializer if it is registered.
 			case 'object': return __serializeObject__(ctx, value);
 		}
 	}
@@ -145,3 +140,9 @@ var serialize = (function () {
 		}, obj);
 	};
 })();
+
+/** 
+*/
+function serializeAsType(constructor) {
+	return new type(constructor);
+}
