@@ -84,6 +84,17 @@ function register(registry, spec) {
 	return spec;
 }
 
+/** A registered construction can be removed with the `remove` method giving its identifier.
+*/
+function remove(registry, id) {
+	if (!registry.hasOwnProperty(id)) {
+		raise('remove', "A construction for '"+ id +"' has not been registered!", { identifier: id });
+	}
+	var r = registry[id];
+	delete registry[id];
+	return r;
+}
+
 /** The `include` method is a more convenient and flexible way of registering custom types. If a 
 name (i.e. a string) is provided, the corresponding entry in `Sermat.CONSTRUCTIONS` will be added.
 If a constructor function is given and it has a `__SERMAT__` member with the type's definitions, 
@@ -120,5 +131,33 @@ function include(arg) {
 			}
 		}
 		default: raise('include', "Could not include ("+ arg +")!", { arg: arg });
+	}
+}
+
+/** The ´exclude´ method is also a convenient way of removing type registrations. Returns the amount
+of registrations actually removed.
+*/
+function exclude(arg) {
+	switch (typeof arg) {
+		case 'string': {
+			if (this.record(arg)) {
+				this.remove(arg);
+				return 1;
+			}
+			return 0;
+		}
+		case 'function': {
+			return this.exclude(identifier(arg));
+		}
+		case 'object': {
+			if (Array.isArray(arg)) {
+				var r = 0;
+				arg.forEach((function (c) {
+					r += this.exclude(c);
+				}).bind(this));
+				return r;
+			}
+		}
+		default: raise('exclude', "Could not exclude ("+ arg +")!", { arg: arg });
 	}
 }

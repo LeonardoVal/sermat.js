@@ -37,6 +37,15 @@
 		expect(sermat.ser(rect1.topLeft)).toBe('Point2D(1,2)');
 	});
 	
+	it("with remove().", function () { /////////////////////////////////////////////////////////////
+		var sermat1 = new Sermat();
+		expect(sermat1.record(Date)).toBeTruthy();
+		expect(sermat1.remove('Date').type).toBe(Date);
+		expect(sermat1.record(Date)).toBeUndefined();
+		expect(sermat1.record('!?')).toBeUndefined();
+		expect(sermat1.remove.bind(sermat1, '!?')).toThrow();
+	});
+	
 	it("with include().", function () { ////////////////////////////////////////////////////////////
 		var sermat1 = new Sermat();
 		Point2D.__SERMAT__ = Point2D__SERMAT__();
@@ -69,5 +78,25 @@
 		Point2D.__SERMAT__ = Point2D__SERMAT__();
 		Rect2D.__SERMAT__ = Rect2D__SERMAT__();
 		expect(sermat4.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
+	});
+	
+	it("with exclude().", function () { ////////////////////////////////////////////////////////////
+		var sermat1 = new Sermat();
+		expect(sermat1.record(Date)).toBeTruthy();
+		expect(sermat1.ser(new Date())).toBeTruthy();
+		expect(sermat1.exclude(Date)).toBe(1);
+		expect(sermat1.record(Date)).toBeFalsy();
+		expect(sermat1.ser.bind(sermat1, new Date())).toThrow();
+		
+		var sermat2 = new Sermat();
+		expect(sermat2.record(Date)).toBeTruthy();
+		expect(sermat2.record(RegExp)).toBeTruthy();
+		expect(sermat2.ser([new Date(), /.*/g])).toBeTruthy();
+		expect(sermat2.exclude([Date, RegExp])).toBe(2);
+		expect(sermat2.ser.bind(sermat2, [new Date(), /.*/g])).toThrow();
+		
+		var sermat3 = new Sermat();
+		expect(sermat3.exclude.bind(sermat3, Math)).toThrow();
+		expect(sermat3.exclude([Date, Date])).toBe(1);
 	});
 }); //// describe "Sermat".
