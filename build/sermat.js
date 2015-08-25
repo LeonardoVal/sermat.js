@@ -80,11 +80,11 @@ constructor with the list of values in the text.
 */
 function register(registry, spec) {
 	if (typeof spec.type !== 'function') {
-		raise('register', 'No constructor found for type ('+ spec +')!', { spec: spec });
+		raise('register', "No constructor found for type ("+ spec +")!", { spec: spec });
 	}
 	spec = {
-		identifier: spec.identifier || identifier(spec.type, true),
 		type: spec.type,
+		identifier: spec.identifier || identifier(spec.type, true),
 		serializer: spec.serializer,
 		materializer: spec.materializer || materializeWithConstructor.bind(this, spec.type),
 		global: !!spec.global,
@@ -95,7 +95,7 @@ function register(registry, spec) {
 		raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
 	}
 	if (registry.hasOwnProperty(id)) {
-		raise('register', "'"+ id +"' is already registered!", { spec: spec });
+		raise('register', "Construction '"+ id +"' is already registered!", { spec: spec });
 	}
 	if (typeof spec.serializer !== 'function') {
 		raise('register', "Serializer for '"+ id +"' is not a function!", { spec: spec });
@@ -112,6 +112,17 @@ function register(registry, spec) {
 		this.include(spec.include);
 	}
 	return spec;
+}
+
+/** A registered construction can be removed with the `remove` method giving its identifier.
+*/
+function remove(registry, id) {
+	if (!registry.hasOwnProperty(id)) {
+		raise('remove', "A construction for '"+ id +"' has not been registered!", { identifier: id });
+	}
+	var r = registry[id];
+	delete registry[id];
+	return r;
 }
 
 /** The `include` method is a more convenient and flexible way of registering custom types. If a 
@@ -153,6 +164,34 @@ function include(arg) {
 	}
 }
 
+/** The �exclude� method is also a convenient way of removing type registrations. Returns the amount
+of registrations actually removed.
+*/
+function exclude(arg) {
+	switch (typeof arg) {
+		case 'string': {
+			if (this.record(arg)) {
+				this.remove(arg);
+				return 1;
+			}
+			return 0;
+		}
+		case 'function': {
+			return this.exclude(identifier(arg));
+		}
+		case 'object': {
+			if (Array.isArray(arg)) {
+				var r = 0;
+				arg.forEach((function (c) {
+					r += this.exclude(c);
+				}).bind(this));
+				return r;
+			}
+		}
+		default: raise('exclude', "Could not exclude ("+ arg +")!", { arg: arg });
+	}
+}
+
 /** ## Serialization ###############################################################################
 
 Serialization is similar to JSON's `stringify` method. The method takes a data structure and 
@@ -170,11 +209,11 @@ the functions behaviour. The most important one is perhaps `mode`.
 
 + `BINDING_MODE`: Every object inside the given value is given an identifier. If any one of these
 	is visited twice or more, a reference to the first serialization is generated using this 
-	identifier. Yet, circular references are forbidden. The materialization actually reuses 
-	instances.
+	identifier. The materialization actually reuses instances, though circular references are still 
+	forbidden.
 
 + `CIRCULAR_MODE`: Similar to `BINDING_MODE`, except that circular references are allowed. This
-	still depends on the constructions materializers supporting circular references.
+	still depends on the constructions' materializers supporting circular references.
 */
 var BASIC_MODE = 0,
 	REPEAT_MODE = 1,
@@ -205,12 +244,7 @@ var serialize = (function () {
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return '"'+ value.replace(/[\\\"]/g, '\\$&') +'"';
-			case 'function': {
-				var record = ctx.record(value);
-				if (record) {
-					return record.identifier;
-				} // else continue to object, using Function's serializer if it is registered. 
-			}
+			case 'function': // Continue to object, using Function's serializer if it is registered.
 			case 'object': return __serializeObject__(ctx, value);
 		}
 	}
@@ -300,6 +334,12 @@ var serialize = (function () {
 		}, obj);
 	};
 })();
+
+/** 
+*/
+function serializeAsType(constructor) {
+	return new type(constructor);
+}
 
 /** ## Materialization #############################################################################
 
@@ -410,10 +450,7 @@ function materialize(text) {
 	var getBind = (function (id) {
 		var value = bindings[id];
 		if (typeof value === 'undefined') {
-			value = (value = this.registry[id]) && value.type;
-			if (!value) {
-				parseError("'"+ id +"' is not bound", { unboundId: id });
-			}
+			parseError("'"+ id +"' is not bound", { unboundId: id });
 		}
 		return value;
 	}).bind(this);
@@ -634,20 +671,23 @@ One of Sermat's most important features is extensible handling of custom types. 
 provides some implementations for some of Javascript's base types.
 */
 
-/** A value's `type` is a string. It is equal to `typeof value` if this is not `'object'`. In that
-	case it can be the empty string (for `null`) or the name of the value's constructor.
-*/
-function type(value) {
-	var t = typeof value;
-	return t === 'object' ? (value ? identifier(value.constructor) : '') : t; 
-}
+/** The `signature` function builds a string representing the types of the arguments (separated by
+comma). For each value it is equal to `typeof value` if is not `'object'`, the empty string (for 
+`null`) or the name of the value's constructor.
 
-/** The `signature` function builds a string with a comma separated list of the types of the `obj`
-	and the `args`. It can be used to quickly check a call to a materializer using a regular 
-	expression.
+It can be used to quickly check a call to a materializer using a regular expression.
 */
-function signature(obj, args) {
-	return type(obj) +','+ args.map(type).join(',');
+function signature() {
+	var r = "", t, v;
+	for (var i = 0; i < arguments.length; i++) {
+		v = arguments[i];
+		t = typeof v;
+		if (i) {
+			r += ',';
+		}
+		r += t === 'object' ? (v ? identifier(v.constructor) : '') : t;
+	}
+	return r;
 }
 
 /** The `checkSignature` function checks the types of a call to a materializer using a regular
@@ -655,7 +695,7 @@ function signature(obj, args) {
 	materializer functions more secure.
 */
 function checkSignature(id, regexp, obj, args) {
-	var types = signature(obj, args);
+	var types = signature.apply(this, [obj].concat(args));
 	if (!regexp.exec(types)) {
 		raise('checkSignature', "Wrong arguments for construction of "+ id +" ("+ types +")!", 
 			{ id: id, obj: obj, args: args });
@@ -663,7 +703,8 @@ function checkSignature(id, regexp, obj, args) {
 	return true;
 }
 
-/** `Sermat.CONSTRUCTIONS` has default implementations for Javascript's base types.
+/** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first 
+it includes some implementations for Javascript's base types.
 */
 var CONSTRUCTIONS = {};
 [
@@ -737,7 +778,8 @@ var CONSTRUCTIONS = {};
 	[Date,
 		function serialize_Date(value) {
 			return [value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
-				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), value.getUTCMilliseconds()];
+				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), 
+				value.getUTCMilliseconds()];
 		},
 		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
 			return args 
@@ -764,17 +806,45 @@ var CONSTRUCTIONS = {};
 		}
 	]
 ].forEach(function (rec) {
-	var id = identifier(rec[0], true),
-		entry = {
-			identifier: id, 
-			type: rec[0], 
-			serializer: rec[1], 
-			materializer: rec[2]
-		};
-	Object.freeze(entry);
-	member(CONSTRUCTIONS, id, entry, 1);
+	var id = identifier(rec[0], true);
+	member(CONSTRUCTIONS, id, Object.freeze({
+		identifier: id,
+		type: rec[0],
+		serializer: rec[1], 
+		materializer: rec[2]
+	}), 1);
 });
 
+/** The pseudoconstruction `type` is used to serialize references to constructor functions of 
+registered types. For example, `type(Date)` materializes to the `Date` function.
+*/
+function type(f) {
+	this.typeConstructor = f;
+}
+
+member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({
+	identifier: 'type',
+	type: type,
+	serializer: function serialize_type(value) {
+		var rec = this.record(value.typeConstructor);
+		if (!rec) {
+			raise('serialize_type', "Unknown type \""+ identifier(value.typeConstructor) +"\"!", { type: value.typeConstructor });
+		} else {
+			return [rec.identifier];
+		}
+	},
+	materializer: function materialize_type(obj, args) {
+		if (!args) {
+			return null;
+		} else if (checkSignature('type', /^,string$/, obj, args)) {
+			var rec = this.record(args[0]);
+			if (rec) {
+				return rec.type;
+			}
+		}
+		raise('materialize_type', "Cannot materialize construction for type("+ args +")!", { args: args });
+	}
+}), 1);
 
 /** ## Wrap-up #####################################################################################
 
@@ -782,10 +852,10 @@ Here both `Sermat`'s prototype and singleton are set up.
 */
 function Sermat(params) {
 	var __registry__ = {},
-		__register__ = register.bind(this, __registry__),
 		__modifiers__ = {};
 	member(this, 'registry', __registry__);
-	member(this, 'register', __register__);
+	member(this, 'register', register.bind(this, __registry__));
+	member(this, 'remove', remove.bind(this, __registry__));
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
@@ -797,7 +867,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp type'.split(' '));
 }
 
 var __members__ = {
@@ -810,14 +880,15 @@ var __members__ = {
 	'identifier': identifier,
 	'record': record,
 	'include': include,
+	'exclude': exclude,
 	
 	'serialize': serialize, 'ser': serialize,
 	'serializeAsProperties': serializeAsProperties,
 	
 	'materialize': materialize, 'mat': materialize,
 	'construct': construct,
-	'type': type,
 	'signature': signature, 'checkSignature': checkSignature,
+	'serializeAsType': serializeAsType,
 	'materializeWithConstructor': materializeWithConstructor,
 	
 	'sermat': sermat
@@ -841,9 +912,9 @@ Object.keys(__members__).forEach(function (id) {
 	member(Sermat, id, typeof m === 'function' ? m.bind(__SINGLETON__) : m);
 });
 
-member(Sermat, 'registry', __SINGLETON__.registry);
-member(Sermat, 'register', __SINGLETON__.register);
-member(Sermat, 'modifiers', __SINGLETON__.modifiers);
+['registry', 'register', 'remove', 'modifiers'].forEach(function (id) {
+	member(Sermat, id, __SINGLETON__[id]);
+});
 
 /** Module layout.
 */
