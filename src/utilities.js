@@ -6,16 +6,15 @@
 with some of its properties. This method can be used to quickly implement a serializer function when 
 the constructor of the type can be called with an object.
 */
-function serializeAsProperties(obj, properties) {
-	var result = {};
-	if (Array.isArray(properties)) {
-		properties.forEach(function (k) {
-			result[k] = obj[k];
-		});
-	} else {
-		Object.keys(properties).forEach(function (k) {
-			result[k] = obj[properties[k]];
-		});
+function serializeAsProperties(obj, properties, ownProperties) {
+	var result = {}, 
+		fromArray = Array.isArray(properties),
+		name;
+	for (var i in properties) {
+		name = properties[i];
+		if (!ownProperties || obj.hasOwnProperty(name)) {
+			result[fromArray ? name : i] = obj[name];
+		}
 	}
 	return [result];
 }
