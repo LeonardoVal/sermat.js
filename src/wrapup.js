@@ -23,27 +23,29 @@ function Sermat(params) {
 }
 
 var __members__ = {
-	'BASIC_MODE': BASIC_MODE,
-	'REPEAT_MODE': REPEAT_MODE,
-	'BINDING_MODE': BINDING_MODE,
-	'CIRCULAR_MODE': CIRCULAR_MODE,
-	'CONSTRUCTIONS': CONSTRUCTIONS,
+	BASIC_MODE: BASIC_MODE,
+	REPEAT_MODE: REPEAT_MODE,
+	BINDING_MODE: BINDING_MODE,
+	CIRCULAR_MODE: CIRCULAR_MODE,
+	CONSTRUCTIONS: CONSTRUCTIONS,
 	
-	'identifier': identifier,
-	'record': record,
-	'include': include,
-	'exclude': exclude,
+	identifier: identifier,
+	record: record,
+	include: include,
+	exclude: exclude,
 	
-	'serialize': serialize, 'ser': serialize,
-	'serializeAsProperties': serializeAsProperties,
+	serialize: serialize, ser: serialize,
+	serializeAsProperties: serializeAsProperties,
+	serializeAsType: serializeAsType,
+	signature: signature, checkSignature: checkSignature,
 	
-	'materialize': materialize, 'mat': materialize,
-	'construct': construct,
-	'signature': signature, 'checkSignature': checkSignature,
-	'serializeAsType': serializeAsType,
-	'materializeWithConstructor': materializeWithConstructor,
+	materialize: materialize, mat: materialize,
+	construct: construct,
+	materializeWithConstructor: materializeWithConstructor,
 	
-	'sermat': sermat
+	encode85: encode85, decode85: decode85,
+	
+	sermat: sermat
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];

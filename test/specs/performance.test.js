@@ -81,42 +81,46 @@
 		}
 	}
 	
+	function randomArrayBuffer(size) {
+		var array = [];
+		for (var i = 0; i < size; i++) {
+			array.push(randomInt(256));
+		}
+		return new Uint8Array(array).buffer;
+	}
+	
 // Tests ///////////////////////////////////////////////////////////////////////////////////////////
 	
-	var STRING_TEST_CASES = [""];
-	(function () {
+	it("with strings.", function () { //////////////////////////////////////////////////////////////
+		var STRING_TEST_CASES = [""];
 		for (var size = 1; size <= 0x2000; size *= 2) {
 			for (var i = 0; i < 30; i++) {
 				STRING_TEST_CASES.push(randomString(size, 0, 256));
 			}
 		}
-	})();
-	
-	it("with strings.", function () { //////////////////////////////////////////////////////////////
+
 		var time = testTime(STRING_TEST_CASES, Sermat.serialize, "Sermat.serialize"),
 			charCount = 0;
 		STRING_TEST_CASES = STRING_TEST_CASES.map(function (string) {
 			charCount += string.length;
 			return Sermat.serialize(string);
 		});
-		console.log("String literal serialization time: "+ (time / charCount * 1000) +"e-6 secs/char.");
+		console.log("String literal serialization time: "+ Math.round(time / charCount * 1e6) / 1e3 +"e-6 secs/char.");
 		
 		time = testTime(STRING_TEST_CASES, Sermat.materialize, "Sermat.materialize");
-		console.log("String literal materialization time: "+ (time / charCount * 1000) +"e-6 secs/char.");
+		console.log("String literal materialization time: "+ Math.round(time / charCount * 1e6) / 1e3 +"e-6 secs/char.");
 	});
 	
-	var STRUCTURE_TEST_CASES = [];
-	(function () {
+	it("with structured values.", function () { ////////////////////////////////////////////////////
+		var STRUCTURE_TEST_CASES = [];
 		for (var min = 0; min < 4; min++) {
 			for (var max = min; max < min + 4; max++) {
 				for (var i = 0; i < 50; i++) {
 					STRUCTURE_TEST_CASES.push(randomValue(min, max));
 				}
 			}
-		}
-	})();
-	
-	it("with structured values.", function () { ////////////////////////////////////////////////////
+		}	
+		
 		var timeSermat = testTime(STRUCTURE_TEST_CASES, Sermat.serialize, "Sermat.serialize"),
 			charCountSermat = 0,
 			serializedSermat = STRUCTURE_TEST_CASES.map(function (testCase) {
@@ -132,7 +136,7 @@
 				return text;
 			})
 			;
-		console.log("Random structure serialization time: "+ (timeSermat / charCountSermat * 1000) +"e-6 secs/char. "+
+		console.log("Random structure serialization time: "+ Math.round(timeSermat / charCountSermat * 1e6) / 1e3 +"e-6 secs/char. "+
 			"Ratios with JSON.stringify: "+ (timeSermat / timeJSON +'').substr(0, 5) +" time ("+ timeSermat +"/"+ timeJSON +") and "+ 
 			(charCountSermat / charCountJSON +'').substr(0, 5) +" chars ("+ charCountSermat +"/"+ charCountJSON +").");
 			
@@ -141,8 +145,27 @@
 			expect(Sermat.ser(Sermat.mat(serialized))).toBe(serialized);
 		});
 		timeJSON = testTime(serializedJSON, JSON.parse, "JSON.parse");
-		console.log("Random structure materialization time: "+ (timeSermat / charCountSermat * 1000) +"e-6 secs/char. "+
+		console.log("Random structure materialization time: "+ Math.round(timeSermat / charCountSermat * 1e6) / 1e3 +"e-6 secs/char. "+
 			"Time ratio with JSON.parse: "+ (timeSermat / timeJSON +'').substr(0, 5) +" ("+ timeSermat +"/"+ timeJSON +").");
 	});
 	
+	it("with array buffers.", function () { ////////////////////////////////////////////////////////
+		var ARRAYBUFFER_TEST_CASES = [];
+		for (var size = 1; size <= 0x2000; size *= 2) {
+			for (var i = 0; i < 30; i++) {
+				ARRAYBUFFER_TEST_CASES.push(randomArrayBuffer(size));
+			}
+		}
+
+		var time = testTime(ARRAYBUFFER_TEST_CASES, Sermat.encode85, "Sermat.encode85"),
+			byteCount = 0;
+		ARRAYBUFFER_TEST_CASES = ARRAYBUFFER_TEST_CASES.map(function (buffer) {
+			byteCount += buffer.byteLength;
+			return Sermat.encode85(buffer);
+		});
+		console.log("ArrayBuffer encoding time: "+ Math.round(time / byteCount * 1e6) / 1e3 +"e-6 secs/byte.");
+		
+		time = testTime(ARRAYBUFFER_TEST_CASES, Sermat.decode85, "Sermat.decode85");
+		console.log("ArrayBuffer decoding time: "+ Math.round(time / byteCount * 1e6) / 1e3 +"e-6 secs/byte.");
+	});
 }); //// describe "Parser performance".

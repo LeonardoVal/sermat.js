@@ -1,15 +1,16 @@
 ﻿/** Gruntfile for [sermat.js](http://github.com/LeonardoVal/sermat.js).
 */
-var sourceFiles = [
-	'src/__prologue__.js',
-	'src/registry.js',
-	'src/serialization.js',
-	'src/materialization.js',
-	'src/utilities.js',
-	'src/constructions.js',
-	'src/wrapup.js',
-	'src/__epilogue__.js'
-];
+var sourceFiles = ['__prologue__',
+		'registry',
+		'serialization',
+		'materialization',
+		'utilities',
+		'binary',
+		'constructions',
+		'wrapup',
+	'__epilogue__'].map(function (module) {
+		return 'src/'+ module +'.js';
+	});
 
 var UMDWrapper = function (global, init) { "use strict";
 	if (typeof define === 'function' && define.amd) {
