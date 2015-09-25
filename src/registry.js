@@ -54,16 +54,18 @@ function register(registry, spec) {
 	}
 	spec = {
 		type: spec.type,
-		identifier: spec.identifier || identifier(spec.type, true),
+		identifier: (spec.identifier || identifier(spec.type, true)).trim(),
 		serializer: spec.serializer,
 		materializer: spec.materializer || materializeWithConstructor.bind(this, spec.type),
 		global: !!spec.global,
 		include: spec.include
 	};
 	var id = spec.identifier;
-	if (!ID_REGEXP.exec(id)) {
-		raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
-	}
+	['true', 'false','null','NaN','Infinity',''].forEach(function (invalidId) {
+		if (id === invalidId) {
+			raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
+		}
+	});
 	if (registry.hasOwnProperty(id)) {
 		raise('register', "Construction '"+ id +"' is already registered!", { spec: spec });
 	}
@@ -134,7 +136,7 @@ function include(arg) {
 	}
 }
 
-/** The ´exclude´ method is also a convenient way of removing type registrations. Returns the amount
+/** The `exclude` method is also a convenient way of removing type registrations. Returns the amount
 of registrations actually removed.
 */
 function exclude(arg) {
