@@ -26,15 +26,6 @@ var BASIC_MODE = 0,
 	BINDING_MODE = 2,
 	CIRCULAR_MODE = 3;
 
-/** Other modifiers include:
-
-+ `allowUndefined`: If `true` allows undefined values to be serialized as `null`. If `false` (the 
-	default) any undefined value inside the given object will raise an error.
-
-+ `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
-	all objects are treated as literals (the same way JSON does). It is `true` by default.
-*/
-
 /** Serialization method can be called as `serialize` or `ser`.
 */
 var serialize = (function () {
@@ -49,10 +40,14 @@ var serialize = (function () {
 			}
 			case 'boolean':   
 			case 'number': return value +'';
-			case 'string': return '"'+ value.replace(/[\\\"]/g, '\\$&') +'"';
+			case 'string': return __serializeString__(value);
 			case 'function': // Continue to object, using Function's serializer if it is registered.
 			case 'object': return __serializeObject__(ctx, value);
 		}
+	}
+	
+	function __serializeString__(str) {
+		return '"'+ str.replace(/[\\\"]/g, '\\$&') +'"';
 	}
 	
 	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
@@ -114,7 +109,7 @@ var serialize = (function () {
 			}
 			var args = record.serializer.call(ctx.sermat, obj),
 				id = record.identifier;
-			output += (ID_REGEXP.exec(id) ? id : __serializeValue__(id)) +'(';
+			output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'(';
 			for (i = 0, len = args.length; i < len; i++) {
 				output += (i ? ',' : '')+ __serializeValue__(ctx, args[i]);
 			}
@@ -132,8 +127,18 @@ var serialize = (function () {
 			sermat: this,
 			record: this.record.bind(this),
 			include: this.include.bind(this),
-			// Modifiers
-			mode: coalesce(modifiers.mode, this.modifiers.mode),
+/** Besides the `mode`, other modifiers of the serialization include:
+
++ `allowUndefined`: If `true` allows undefined values to be serialized as `null`. If `false` (the 
+	default) any undefined value inside the given object will raise an error.
+
++ `autoInclude`: If `true` forces the registration of types found during the serialization, but not
+	in the construction registry.
+	
++ `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
+	all objects are treated as literals (the same way JSON does). It is `true` by default.
+*/
+			mode: coalesce(modifiers.mode, this.modifiers.mode), // Modifiers
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
 			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
 			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
@@ -141,7 +146,7 @@ var serialize = (function () {
 	};
 })();
 
-/** 
+/** The function `serializeAsType` allows to add a reference to a constructor to the serialization.
 */
 function serializeAsType(constructor) {
 	return new type(constructor);
