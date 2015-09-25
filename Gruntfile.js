@@ -116,7 +116,8 @@ module.exports = function(grunt) {
 				dest: 'docs/docker',
 				options: {
 					colourScheme: 'borland',
-					ignoreHidden: true
+					ignoreHidden: true,
+					exclude: 'src/__prologue__.js,src/__epilogue__.js'
 				}
 			}
 		}
