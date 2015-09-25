@@ -137,15 +137,35 @@ var CONSTRUCTIONS = {};
 				&& checkSignature('Function', /^(,string)+$/, obj, args) 
 				&& (Function.apply(null, args));
 		}
-	]
+	],
+	
+/** + `ArrayBuffer` instances and typed arrays are serialized using `encode85` and materialized with
+	`decode85`.
+*/
+	[ArrayBuffer,
+		function serialize_ArrayBuffer(value) {
+			return [this.encode85(value)];
+		},
+		function materialize_ArrayBuffer(obj, args) {
+			return args
+				&& checkSignature('ArrayBuffer', /^,string$/, obj, args)
+				&& this.decode85(args[0]);
+		}
+	],
+	[Int8Array, typedArraySerializer, typedArrayMaterializer('Int8Array', Int8Array)],
+	[Uint8Array, typedArraySerializer, typedArrayMaterializer('Uint8Array', Uint8Array)],
+	//[Uint8ClampedArray, typedArraySerializer, typedArrayMaterializer('Uint8ClampedArray', Uint8ClampedArray)],
+	
 ].forEach(function (rec) {
-	var id = identifier(rec[0], true);
-	member(CONSTRUCTIONS, id, Object.freeze({
-		identifier: id,
-		type: rec[0],
-		serializer: rec[1], 
-		materializer: rec[2]
-	}), 1);
+	if (typeof rec[0] === 'function') { // PhantomJS' ArrayBuffer is weird.
+		var id = identifier(rec[0], true);
+		member(CONSTRUCTIONS, id, Object.freeze({
+			identifier: id,
+			type: rec[0],
+			serializer: rec[1], 
+			materializer: rec[2]
+		}), 1);
+	}
 });
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 

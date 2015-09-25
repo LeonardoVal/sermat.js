@@ -1,6 +1,6 @@
-/** ## Special encoding of byte arrays with base 85 ################################################
+/** # Binary support 
 
-This file holds a custom base 85 encoding (similar to [ascii85](https://en.wikipedia.org/wiki/Ascii85)) 
+Sermat includes a custom base 85 encoding (similar to [ascii85](https://en.wikipedia.org/wiki/Ascii85)) 
 of Javascript's byte arrays. It is more space efficient than base64. Assuming UTF8 text enconding, 
 each 100 characters in base 64 encoded strings hold around 75 bytes, while 100 characters in base 85
 hold around 80 bytes.
@@ -84,4 +84,16 @@ function decode85(string) {
 		view.setUint8(i++, num & 0xFF);
 	}
 	return buffer;
+}
+
+function typedArraySerializer(value) {
+	return [this.encode85(value.buffer)];
+}
+
+function typedArrayMaterializer(id, arrayType) {
+	return function (obj, args) {
+		return args
+			&& checkSignature(id, /^,string$/, obj, args)
+			&& new arrayType(this.decode85(args[0]));
+	};
 }
