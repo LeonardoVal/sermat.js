@@ -19,11 +19,11 @@ constructor function is used, but this can be overriden by setting a `__SERMAT__
 function.
 */
 var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
-	ID_REGEXP = /^[\$A-Z_a-z][\$\-\.\w]*$/;
+	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*([\.-][a-zA-Z0-9_]+)*$/;
 function identifier(type, must) {
 	var id = (type.__SERMAT__ && type.__SERMAT__.identifier)
 		|| type.name
-		|| (FUNCTION_ID_RE.exec(constructor +'') || [])[1];
+		|| (FUNCTION_ID_RE.exec(type +'') || [])[1];
 	if (!id && must) {
 		raise('identifier', "Could not found id for type!", { type: type });
 	}
