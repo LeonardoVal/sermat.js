@@ -60,18 +60,24 @@ var serialize = (function () {
 		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
 			raise('serialize', "Circular reference detected!", { circularReference: obj });
 		}
-		var i = ctx.visited.indexOf(obj), output = '', 
-			k, len;
-		if (i >= 0) {
-			if (ctx.mode & BINDING_MODE) {
-				return '$'+ i;
-			} else if (ctx.mode !== REPEAT_MODE) {
-				raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
-			}
-		} else {
-			i = ctx.visited.push(obj) - 1;
-			if (ctx.mode & BINDING_MODE) {
-				output = '$'+ i +'=';
+		var output = '', 
+			i, len;
+		/** If `ctx.visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
+		not have to be checked. This is only an optimization.
+		*/
+		if (ctx.visited) {
+			i = ctx.visited.indexOf(obj);
+			if (i >= 0) {
+				if (ctx.mode & BINDING_MODE) {
+					return '$'+ i;
+				} else {
+					raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
+				}
+			} else {
+				i = ctx.visited.push(obj) - 1;
+				if (ctx.mode & BINDING_MODE) {
+					output = '$'+ i +'=';
+				}
 			}
 		}
 		ctx.parents.push(obj);
@@ -121,8 +127,9 @@ var serialize = (function () {
 
 	return function serialize(obj, modifiers) {
 		modifiers = modifiers || this.modifiers;
+		var mode = coalesce(modifiers.mode, this.modifiers.mode);
 		return __serializeValue__({
-			visited: [], 
+			visited: mode === REPEAT_MODE ? null : [],
 			parents: [],
 			sermat: this,
 			record: this.record.bind(this),
@@ -138,7 +145,7 @@ var serialize = (function () {
 + `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
 	all objects are treated as literals (the same way JSON does). It is `true` by default.
 */
-			mode: coalesce(modifiers.mode, this.modifiers.mode), // Modifiers
+			mode: mode,
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
 			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
 			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
