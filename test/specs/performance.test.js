@@ -148,24 +148,4 @@
 		console.log("Random structure materialization time: "+ Math.round(timeSermat / charCountSermat * 1e6) / 1e3 +"e-6 secs/char. "+
 			"Time ratio with JSON.parse: "+ (timeSermat / timeJSON +'').substr(0, 5) +" ("+ timeSermat +"/"+ timeJSON +").");
 	});
-	
-	it("with array buffers.", function () { ////////////////////////////////////////////////////////
-		var ARRAYBUFFER_TEST_CASES = [];
-		for (var size = 1; size <= 0x2000; size *= 2) {
-			for (var i = 0; i < 30; i++) {
-				ARRAYBUFFER_TEST_CASES.push(randomArrayBuffer(size));
-			}
-		}
-
-		var time = testTime(ARRAYBUFFER_TEST_CASES, Sermat.encode85, "Sermat.encode85"),
-			byteCount = 0;
-		ARRAYBUFFER_TEST_CASES = ARRAYBUFFER_TEST_CASES.map(function (buffer) {
-			byteCount += buffer.byteLength;
-			return Sermat.encode85(buffer);
-		});
-		console.log("ArrayBuffer encoding time: "+ Math.round(time / byteCount * 1e6) / 1e3 +"e-6 secs/byte.");
-		
-		time = testTime(ARRAYBUFFER_TEST_CASES, Sermat.decode85, "Sermat.decode85");
-		console.log("ArrayBuffer decoding time: "+ Math.round(time / byteCount * 1e6) / 1e3 +"e-6 secs/byte.");
-	});
 }); //// describe "Parser performance".

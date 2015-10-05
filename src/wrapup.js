@@ -43,8 +43,6 @@ var __members__ = {
 	construct: construct,
 	materializeWithConstructor: materializeWithConstructor,
 	
-	encode85: encode85, decode85: decode85,
-	
 	sermat: sermat
 };
 Object.keys(__members__).forEach(function (id) {

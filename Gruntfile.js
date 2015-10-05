@@ -5,7 +5,6 @@ var sourceFiles = ['__prologue__',
 		'serialization',
 		'materialization',
 		'utilities',
-		'binary',
 		'constructions',
 		'wrapup',
 	'__epilogue__'].map(function (module) {
