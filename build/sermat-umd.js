@@ -264,18 +264,24 @@ var serialize = (function () {
 		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
 			raise('serialize', "Circular reference detected!", { circularReference: obj });
 		}
-		var i = ctx.visited.indexOf(obj), output = '', 
-			k, len;
-		if (i >= 0) {
-			if (ctx.mode & BINDING_MODE) {
-				return '$'+ i;
-			} else if (ctx.mode !== REPEAT_MODE) {
-				raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
-			}
-		} else {
-			i = ctx.visited.push(obj) - 1;
-			if (ctx.mode & BINDING_MODE) {
-				output = '$'+ i +'=';
+		var output = '', 
+			i, len;
+		/** If `ctx.visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
+		not have to be checked. This is only an optimization.
+		*/
+		if (ctx.visited) {
+			i = ctx.visited.indexOf(obj);
+			if (i >= 0) {
+				if (ctx.mode & BINDING_MODE) {
+					return '$'+ i;
+				} else {
+					raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
+				}
+			} else {
+				i = ctx.visited.push(obj) - 1;
+				if (ctx.mode & BINDING_MODE) {
+					output = '$'+ i +'=';
+				}
 			}
 		}
 		ctx.parents.push(obj);
@@ -325,8 +331,9 @@ var serialize = (function () {
 
 	return function serialize(obj, modifiers) {
 		modifiers = modifiers || this.modifiers;
+		var mode = coalesce(modifiers.mode, this.modifiers.mode);
 		return __serializeValue__({
-			visited: [], 
+			visited: mode === REPEAT_MODE ? null : [],
 			parents: [],
 			sermat: this,
 			record: this.record.bind(this),
@@ -342,7 +349,7 @@ var serialize = (function () {
 + `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
 	all objects are treated as literals (the same way JSON does). It is `true` by default.
 */
-			mode: coalesce(modifiers.mode, this.modifiers.mode), // Modifiers
+			mode: mode,
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
 			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
 			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
@@ -690,106 +697,6 @@ function sermat(obj, modifiers) {
 	return this.mat(this.ser(obj, modifiers));
 }
 
-/** # Binary support 
-
-Sermat includes a custom base 85 encoding (similar to [ascii85](https://en.wikipedia.org/wiki/Ascii85)) 
-of Javascript's byte arrays. It is more space efficient than base64. Assuming UTF8 text enconding, 
-each 100 characters in base 64 encoded strings hold around 75 bytes, while 100 characters in base 85
-hold around 80 bytes.
-
-The characters used are in the range `[\x21-\x7F]` excluing `"$%&'``<>\`. These are special 
-characters in XML and in the syntax of string literals in many programming language and macro 
-systems. Not using these characters allows the encoded strings to be embedded in XML and string 
-literals safely without requiring escape sequences.
-*/
-var CHARS85 = '!#()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~',
-	DIGITS85 = (function () {
-		var r = {};
-		for (var i = 0; i < 85; i++) {
-			r[CHARS85.charAt(i)] = i;
-		}
-		return r;
-	})();
-
-function enc85(num) {
-	var result = '', div;
-	while (num !== 0 || result.length < 5) {
-		div = Math.floor(num / 85);
-		result = CHARS85[num - div * 85] + result;
-		num = div;
-	}
-	return result;
-}
-	
-function encode85(buffer) {
-	var view = new DataView(buffer),
-		result = '', i = 0, len = view.byteLength;
-	switch (len % 4) {
-		case 1: result += enc85(0x101010000 + view.getUint8(i++)); break;
-		case 2: result += enc85(0x101000000 + view.getUint8(i++) * 0x100 + 
-			view.getUint8(i++)); break;
-		case 3: result += enc85(0x100000000 + view.getUint8(i++) * 0x10000 +
-			view.getUint8(i++) * 0x100 + view.getUint8(i++)); break;
-	}
-	while (i < len) {
-		result += enc85(view.getUint8(i++) * 0x1000000 + view.getUint8(i++) * 0x10000 +
-			view.getUint8(i++) * 0x100 + view.getUint8(i++));
-	}
-	return result;
-}
-
-function dec85(str) {
-	var result = 0;
-	for (var i = 0, len = str.length; i < len; i++) {
-		result = DIGITS85[str[i]] + 85 * result;
-	}
-	return result;
-}
-
-function decode85(string) {
-	var len = string.length, i = 0, j = 0,
-		buffer, view, num;
-	if (len < 1) {
-		return new ArrayBuffer(0);
-	}
-	num = dec85(string.substr(0, 5));
-	buffer = new ArrayBuffer((len / 5 - 1) * 4 + 
-		(num < 0x100000000 ? 4 : num < 0x101000000 ? 3 : num < 0x101010000 ? 2 : 1)
-	);
-	view = new DataView(buffer);
-	len = buffer.byteLength;
-	if (num < 0x100000000) {
-		view.setUint8(i++, Math.floor(num / 0x1000000));
-	}
-	if (num < 0x101000000) {
-		view.setUint8(i++, (num & 0xFF0000) >> 16);
-	}
-	if (num < 0x101010000) {
-		view.setUint8(i++, (num & 0xFF00) >> 8);
-	}
-	view.setUint8(i++, num & 0xFF);
-	while (i < len) {
-		num = dec85(string.substr(j += 5, 5));
-		view.setUint8(i++, Math.floor(num / 0x1000000)); // Cannot use bitwise because 32 bits are signed.
-		view.setUint8(i++, (num & 0xFF0000) >> 16);
-		view.setUint8(i++, (num & 0xFF00) >> 8);
-		view.setUint8(i++, num & 0xFF);
-	}
-	return buffer;
-}
-
-function typedArraySerializer(value) {
-	return [this.encode85(value.buffer)];
-}
-
-function typedArrayMaterializer(id, arrayType) {
-	return function (obj, args) {
-		return args
-			&& checkSignature(id, /^,string$/, obj, args)
-			&& new arrayType(this.decode85(args[0]));
-	};
-}
-
 /** ## Constructions for Javascript types ##########################################################
 
 One of Sermat's most important features is extensible handling of custom types. But the library 
@@ -929,35 +836,15 @@ var CONSTRUCTIONS = {};
 				&& checkSignature('Function', /^(,string)+$/, obj, args) 
 				&& (Function.apply(null, args));
 		}
-	],
-	
-/** + `ArrayBuffer` instances and typed arrays are serialized using `encode85` and materialized with
-	`decode85`.
-*/
-	[ArrayBuffer,
-		function serialize_ArrayBuffer(value) {
-			return [this.encode85(value)];
-		},
-		function materialize_ArrayBuffer(obj, args) {
-			return args
-				&& checkSignature('ArrayBuffer', /^,string$/, obj, args)
-				&& this.decode85(args[0]);
-		}
-	],
-	[Int8Array, typedArraySerializer, typedArrayMaterializer('Int8Array', Int8Array)],
-	[Uint8Array, typedArraySerializer, typedArrayMaterializer('Uint8Array', Uint8Array)],
-	//[Uint8ClampedArray, typedArraySerializer, typedArrayMaterializer('Uint8ClampedArray', Uint8ClampedArray)],
-	
+	]
 ].forEach(function (rec) {
-	if (typeof rec[0] === 'function') { // PhantomJS' ArrayBuffer is weird.
-		var id = identifier(rec[0], true);
-		member(CONSTRUCTIONS, id, Object.freeze({
-			identifier: id,
-			type: rec[0],
-			serializer: rec[1], 
-			materializer: rec[2]
-		}), 1);
-	}
+	var id = identifier(rec[0], true);
+	member(CONSTRUCTIONS, id, Object.freeze({
+		identifier: id,
+		type: rec[0],
+		serializer: rec[1], 
+		materializer: rec[2]
+	}), 1);
 });
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 
@@ -1035,8 +922,6 @@ var __members__ = {
 	materialize: materialize, mat: materialize,
 	construct: construct,
 	materializeWithConstructor: materializeWithConstructor,
-	
-	encode85: encode85, decode85: decode85,
 	
 	sermat: sermat
 };
