@@ -3,9 +3,7 @@
 
 Sermat is a serialization and data exchange format, similar to [JSON](http://json.org/). It is meant to be used when dealing with heavily marshalled interfaces separating the application being developed. Examples of this include the communtication between [web workers](http://www.whatwg.org/specs/web-workers/current-work/) or those and the rendering thread in browsers, or between [iframes](http://www.w3schools.com/html/html_iframe.asp). 
 
-[![Built with Grunt](https://cdn.gruntjs.com/builtwith.png)](http://gruntjs.com/)
-
-[![NPM](https://nodei.co/npm/sermat.png)](https://www.npmjs.com/package/sermat)
+[![Built with Grunt](https://cdn.gruntjs.com/builtwith.png)](http://gruntjs.com/) [![NPM](https://nodei.co/npm/sermat.png?mini=true)](https://www.npmjs.com/package/sermat)
 
 ## Design
 
