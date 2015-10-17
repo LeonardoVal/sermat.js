@@ -225,7 +225,7 @@ var BASIC_MODE = 0,
 /** Serialization method can be called as `serialize` or `ser`.
 */
 var serialize = (function () {
-	function __serializeValue__(ctx, value) {
+	function __serializeValue__(ctx, value, eol) {
 		switch (typeof value) {
 			case 'undefined': {
 				if (ctx.allowUndefined) {
@@ -238,7 +238,7 @@ var serialize = (function () {
 			case 'number': return value +'';
 			case 'string': return __serializeString__(value);
 			case 'function': // Continue to object, using Function's serializer if it is registered.
-			case 'object': return __serializeObject__(ctx, value);
+			case 'object': return __serializeObject__(ctx, value, eol);
 		}
 	}
 	
@@ -250,7 +250,7 @@ var serialize = (function () {
 	of the current object. This is useful to check for circular references. The `visited` list holds
 	all previously serialized objects, and is used to check for repeated references and bindings.
 	*/
-	function __serializeObject__(ctx, obj) {
+	function __serializeObject__(ctx, obj, eol) {
 		if (!obj) {
 			return 'null';
 		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
@@ -272,33 +272,35 @@ var serialize = (function () {
 			} else {
 				i = ctx.visited.push(obj) - 1;
 				if (ctx.mode & BINDING_MODE) {
-					output = '$'+ i +'=';
+					output = '$'+ i + (ctx.pretty ? ' = ' : '=');
 				}
 			}
 		}
 		ctx.parents.push(obj);
+		var eol2 = eol && eol +'\t';
 		if (Array.isArray(obj)) { // Arrays.
 		/** An array is serialized as a sequence of values separated by commas between brackets, as 
 			arrays are written in plain Javascript. 
 		*/
-			output += '[';
+			output += '['+ eol2;
 			for (i = 0, len = obj.length; i < len; i++) {
-				output += (i ? ',' : '')+ __serializeValue__(ctx, obj[i]);
+				output += (i ? ','+ eol2 : '')+ __serializeValue__(ctx, obj[i], eol2);
 			}
-			output += ']';
+			output += eol +']';
 		} else if (obj.constructor === Object || !ctx.useConstructions) { // Object literals.
 		/** An object literal is serialized as a sequence of key-value pairs separated by commas 
 			between braces. Each pair is joined by a colon. This is the same syntax that 
 			Javascript's object literals follow.
 		*/
 			i = 0;
-			output += '{';
+			output += '{'+ eol2;
 			for (var key in obj) {
-				output += (i++ ? ',' : '')+ 
-					(ID_REGEXP.exec(key) ? key : __serializeValue__(ctx, key)) +':'+ 
-					__serializeValue__(ctx, obj[key]);
+				output += (i++ ? ','+ eol2 : '')+ 
+					(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
+					(ctx.pretty ? ' : ' : ':') + 
+					__serializeValue__(ctx, obj[key], eol2);
 			}
-			output += '}';
+			output += eol +'}';
 		} else { 
 		/** Constructions is the term used to custom serializations registered by the user for 
 			specific types. They are serialized as an identifier, followed by a sequence of values 
@@ -311,11 +313,12 @@ var serialize = (function () {
 			}
 			var args = record.serializer.call(ctx.sermat, obj),
 				id = record.identifier;
-			output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'(';
+			output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'('+ eol2;
 			for (i = 0, len = args.length; i < len; i++) {
-				output += (i ? ',' : '')+ __serializeValue__(ctx, args[i]);
+				output += (i ? ','+ eol2 : '') + 
+					__serializeValue__(ctx, args[i], eol2);
 			}
-			output += ')';
+			output += eol +')';
 		}
 		ctx.parents.pop();
 		return output;
@@ -323,7 +326,8 @@ var serialize = (function () {
 
 	return function serialize(obj, modifiers) {
 		modifiers = modifiers || this.modifiers;
-		var mode = coalesce(modifiers.mode, this.modifiers.mode);
+		var mode = coalesce(modifiers.mode, this.modifiers.mode),
+			pretty = !!coalesce(modifiers.pretty, this.modifiers.pretty);
 		return __serializeValue__({
 			visited: mode === REPEAT_MODE ? null : [],
 			parents: [],
@@ -340,12 +344,15 @@ var serialize = (function () {
 	
 + `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
 	all objects are treated as literals (the same way JSON does). It is `true` by default.
+	
++ `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable. 
 */
 			mode: mode,
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
 			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
-			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions)
-		}, obj);
+			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions),
+			pretty: pretty
+		}, obj, pretty ? '\n' : '');
 	};
 })();
 
@@ -828,7 +835,21 @@ var CONSTRUCTIONS = {};
 				&& checkSignature('Function', /^(,string)+$/, obj, args) 
 				&& (Function.apply(null, args));
 		}
-	]
+	],
+	
+/** + Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`, `SyntaxError`, `TypeError` 
+	and `URIError`) are not registered by default, but are available. Error instances are serialized 
+	with their `name`, `message` and `stack`. The `stack` trace is overriden, since it is 
+	initialized by the engine when the instance is created. Other properties are not considered, and 
+	may become inconsistent (e.g. Firefox's `fileName` and `lineNumber`).
+*/
+	[Error, serialize_Error, materializer_Error(Error)],
+	[EvalError, serialize_Error, materializer_Error(EvalError)],
+	[RangeError, serialize_Error, materializer_Error(RangeError)],
+	[ReferenceError, serialize_Error, materializer_Error(ReferenceError)],
+	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
+	[TypeError, serialize_Error, materializer_Error(TypeError)],
+	[URIError, serialize_Error, materializer_Error(URIError)]
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -838,6 +859,22 @@ var CONSTRUCTIONS = {};
 		materializer: rec[2]
 	}), 1);
 });
+
+function serialize_Error(obj) {
+	return [obj.message, obj.name || '', obj.stack || ''];
+}
+
+function materializer_Error(type) {
+	return function materialize_Error(obj, args) {
+		var r = null;
+		if (args) {
+			r = new type(args[0] +'');
+			r.name = args[1] +'';
+			r.stack = args[2] +'';
+		}
+		return r;
+	};
+}
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 
 registered types. For example, `type(Date)` materializes to the `Date` function.
