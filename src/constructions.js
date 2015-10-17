@@ -137,7 +137,21 @@ var CONSTRUCTIONS = {};
 				&& checkSignature('Function', /^(,string)+$/, obj, args) 
 				&& (Function.apply(null, args));
 		}
-	]
+	],
+	
+/** + Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`, `SyntaxError`, `TypeError` 
+	and `URIError`) are not registered by default, but are available. Error instances are serialized 
+	with their `name`, `message` and `stack`. The `stack` trace is overriden, since it is 
+	initialized by the engine when the instance is created. Other properties are not considered, and 
+	may become inconsistent (e.g. Firefox's `fileName` and `lineNumber`).
+*/
+	[Error, serialize_Error, materializer_Error(Error)],
+	[EvalError, serialize_Error, materializer_Error(EvalError)],
+	[RangeError, serialize_Error, materializer_Error(RangeError)],
+	[ReferenceError, serialize_Error, materializer_Error(ReferenceError)],
+	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
+	[TypeError, serialize_Error, materializer_Error(TypeError)],
+	[URIError, serialize_Error, materializer_Error(URIError)]
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -147,6 +161,22 @@ var CONSTRUCTIONS = {};
 		materializer: rec[2]
 	}), 1);
 });
+
+function serialize_Error(obj) {
+	return [obj.message, obj.name || '', obj.stack || ''];
+}
+
+function materializer_Error(type) {
+	return function materialize_Error(obj, args) {
+		var r = null;
+		if (args) {
+			r = new type(args[0] +'');
+			r.name = args[1] +'';
+			r.stack = args[2] +'';
+		}
+		return r;
+	};
+}
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 
 registered types. For example, `type(Date)` materializes to the `Date` function.
