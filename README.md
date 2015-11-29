@@ -144,6 +144,33 @@ Refs.ALLOW_EMPTY_INSTANCES = true;
 Sermat.sermat(refs1); // Returns a copy of refs1.
 ```
 
+### Pretty printing
+
+The serializer by default produces the text in a compressed form. A more human friendly version of 
+this text can be generated with the `pretty` option. It turns this:
+
+```
+{a:[1,2,3],b:RegExp("\w+","i")}
+```
+
+into this:
+
+```
+{
+	a : [
+		1,
+		2,
+		3
+	],
+	b : RegExp(
+		"\w+",
+		"i"
+	)
+}
+```
+
+Still, the whitespace used to format the output cannot be customized, as with `JSON.stringify`.
+
 ## License
 
 Sermat is open source software, licenced under an [MIT license](LICENSE.md) (see LICENSE.md).
