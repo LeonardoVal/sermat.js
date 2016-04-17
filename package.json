@@ -9,7 +9,7 @@
 	},
 	"homepage": "http://creatartis.com",
 	"contributors": [],
-	"licence": "MIT",
+	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "http://github.com/LeonardoVal/sermat.js"
