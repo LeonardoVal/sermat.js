@@ -134,7 +134,7 @@ module.exports = function(grunt) {
 		'concat:build_umd', 'uglify:build_umd'
 	]); 
 	grunt.registerTask('test', ['compile', 'karma:test_firefox']);
-	grunt.registerTask('full_test', ['compile', 'karma:test_chrome', 'karma:test_firefox']);
+	grunt.registerTask('full-test', ['compile', 'karma:test_chrome', 'karma:test_firefox']);
 	grunt.registerTask('build', ['test', 'docker:document']);
 	grunt.registerTask('default', ['build']);
 };
