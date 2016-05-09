@@ -2,14 +2,87 @@
 <html><head>
 	<title>Sermat console.</title>
 	<meta charset="UTF-8"/>
+	<link rel="stylesheet" href="console.css"/>
 	<script src="../build/sermat-min.js"></script>
-</head><body onload="main();">
-	<script type="text/javascript">
-function main() {
-	(function (s){ // See: <http://jsconsole.com>.
-		s.src = 'jsconsole/inject.js';
-		document.body.appendChild(s);
-	})(document.createElement('script'));
+</head><body>
+	<h1><a href="http://github.com/LeonardoVal/sermat.js" target="_blank">Sermat</a> tester</h1>
+	<p>Open your browser Javascript console. In Windows use: Ctrl+Shift+J in Chrome, Ctrl+Shift+K in Firefox, F12 in Internet Explorer, Ctrl+Shift+I in Opera.</p>
+	
+	<h2>Reference</h2>
+	<table id="reference"><tr>
+		<td>Sermat<br/><b>new</b> Sermat()</td>
+		<td>Sermat is the class of serializer-materializer, which can also be used as a singleton. The constructor takes an object with <code>modifiers</code>.</td>
+	</tr><tr>
+		<td>Sermat.modifiers</td>
+		<td>Sermat modifiers include: <code>mode</code> (<code>BASIC_MODE</code> by default or <code>REPEAT_MODE</code>, <code>BINDING_MODE</code>, <code>CIRCULAR_MODE</code>), <code>allowUndefined</code> (<code style="font-weight:bold;">false</code> by default), <code>autoInclude</code> (<code style="font-weight:bold;">true</code> by default), <code>useConstructions</code> (<code style="font-weight:bold;">true</code> by default).</td>
+	</tr><tr>
+		<td>Sermat.BASIC_MODE</td>
+		<td>The <code>BASIC_MODE</code> does not allow repeated references, i.e. serializing an object more than once.</td>
+	</tr><tr>
+		<td>Sermat.REPEAT_MODE</td>
+		<td>The <code>REPEAT_MODE</code> allows repeated references by reserializing objects that appear more than once. This is basically what <a href="http://json.org">JSON</a> does.</td>
+	</tr><tr>
+		<td>Sermat.BINDING_MODE</td>
+		<td>The <code>BINDING_MODE</code> allows repeated references, but reuses previous serialization by assigning an identifier each time an object is serialized. Circular references are not allowed though.</td>
+	</tr><tr>
+		<td>Sermat.CIRCULAR_MODE</td>
+		<td>The <code>CIRCULAR_MODE</code> is a <code>BINDING_MODE</code> extended to allow circular references.</td>
+	</tr><tr>
+		<td>Sermat.serialize(<i>value</i>)<br/>Sermat.ser(<span style="font-style:italic;">value</span>)</td>
+		<td>The <code>serialize</code> (or <code>ser</code>) method returns the Sermat string for a given object.</td>
+	</tr><tr>
+		<td>Sermat.materialize(<i>string</i>)<br/>Sermat.mat(<i>string</i>)</td>
+		<td>The <code>materialize</code> (or <code>mat</code>) method reconstructs a value from a Sermat string.</td>
+	</tr><tr>
+		<td>Sermat.sermat(<i>value</i>)</td>
+		<td>The <code>sermat</code> method performs a serialization and then a materialization, effectively cloning the value.</td>
+	</tr><tr>
+	<td>Sermat.CONSTRUCTIONS</td>
+		<td>Constructions are custom serializers registered to be used when an instance of a given type appears during the serialization or materialization process. By default constructions are provided for:
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array" target="_blank"><code>Array</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean" target="_blank"><code>Boolean</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date" target="_blank"><code>Date</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error" target="_blank"><code>Error</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError" target="_blank"><code>EvalError</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function" target="_blank"><code>Function</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number" target="_blank"><code>Number</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object" target="_blank"><code>Object</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError" target="_blank"><code>RangeError</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError" target="_blank"><code>ReferenceError</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp" target="_blank"><code>RegExp</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String" target="_blank"><code>String</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError" target="_blank"><code>SyntaxError</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError" target="_blank"><code>TypeError</code></a>,
+			<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError" target="_blank"><code>URIError</code></a>.
+		</td>
+	</tr><tr>
+		<td>Sermat.identifier(<i>type</i>)</td>
+		<td>Every construction is identified by a name, which is used in the construction syntax. The <code>identifier</code> method calculates this identifier.</td>
+	</tr><tr>
+		<td><i>CustomType</i>.__SERMAT__</td>
+		<td>The <code>__SERMAT__</code> property can be added to custom types (a.k.a classes or constructors) with the definitions needed to support it with Sermat. These include:<code>identifier</code>, <code>serializer</code> function, <code>materializer</code> function. For example:
+		<pre><b>function</b> Point2D(x, y) {
+    <b>this</b>.x = +x;
+    <b>this</b>.y = +y;
 }
-	</script>
+Point2D.__SERMAT__ = {
+    identifier: <i>"mylib.Point2D"</i>,
+    serializer: <b>function</b> serialize_Point2D(obj) {
+        <b>return</b> [obj.x, obj.y];
+    },
+    materializer: <b>function</b> materialize_Point2D(obj, args) {
+        <b>return</b> args && (<b>new</b> Point2D(+args[0], +args[1]));
+    }
+};</pre></td>
+	</tr><tr>
+		<td>Sermat.include(<i>type|record</i>)</td>
+		<td>The include method is a more convenient and flexible way of registering custom types. If a name (i.e. a string) is provided, the corresponding entry in <code>Sermat.CONSTRUCTIONS</code> will be added. If a constructor function is given and it has a <code>__SERMAT__</code> member with the type's definitions, then this will be registered. An array with a combination of the previous two types registers all members. Lastly, an spec record can be used as well. The method tries not to raise errors.</td>
+	</tr><tr>
+		<td>Sermat.exclude(<i>type|record</i>)</td>
+		<td>The exclude method is also a convenient way of removing type registrations. Returns the amount of registrations actually removed.</td>
+	</tr></table>
+
+	<p style="text-align:center;"><a href="mailto:leonardo.val@creatartis.com">&copy; 2015-2016 Leonardo Val</a> - 
+		<a href="http://github.com/LeonardoVal/sermat.js" target="_blank">sermat.js@GitHub</a>
+	</p>
 </body></html>
