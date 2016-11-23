@@ -179,7 +179,7 @@ function materializer_Error(type) {
 }
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 
-registered types. For example, `type(Date)` materializes to the `Date` function.
+registered types. For example, `type("Date")` materializes to the `Date` function.
 */
 function type(f) {
 	this.typeConstructor = f;
