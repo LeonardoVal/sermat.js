@@ -57,7 +57,7 @@ constructor function is used, but this can be overriden by setting a `__SERMAT__
 function.
 */
 var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
-	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*([\.-][a-zA-Z0-9_]+)*$/;
+	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[\.-][a-zA-Z0-9_]+)*$/;
 function identifier(type, must) {
 	var id = (type.__SERMAT__ && type.__SERMAT__.identifier)
 		|| type.name
@@ -486,7 +486,7 @@ function materialize(text) {
 	}).bind(this);
 
 	function setBind(id, value) {
-		if (id.charAt(0) != '$') {
+		if (id.charAt(0) !== '$') {
 			parseError("Invalid binding identifier '"+ id +"'", { invalidId: id });
 		}
 		if (bindings.hasOwnProperty(id)) {
@@ -517,6 +517,12 @@ function materialize(text) {
 	*/
 	var ACTIONS = (function () { 
 		function return$1($1) {
+			return $1;
+		}
+		function notBindId($1) {
+			if ($1.charAt(0) === '$') {
+				parseError("Invalid identifier '"+ $1 +"'", { invalidId: $1 });
+			}
 			return $1;
 		}
 		function cons($1, $2) {
@@ -572,7 +578,7 @@ function materialize(text) {
 				return $1;
 			}],
 		// `key : 'id' ;`
-			[21, 1, return$1],
+			[21, 1, notBindId],
 		// `key : 'str' ;`
 			[21, 1, parseString],
 		// `array0 : 'id' '=' '[' ;`
@@ -595,12 +601,12 @@ function materialize(text) {
 			}],
 		// `cons0 : 'id' '=' 'id' '(' ;`
 			[18, 4, function ($1,$2,$3,$4) {
-				var obj = construct($3, null, null);
+				var obj = construct(notBindId($3), null, null);
 				return obj ? [null, $3, setBind($1, obj), []] : [$1, $3, obj, []];
 			}],
 		// `cons0 : 'id' '(' ;`
 			[18, 2, function ($1,$2,$3) {
-				return [null, $1, null, []];
+				return [null, notBindId($1), null, []];
 			}],
 		// `cons0 : 'id' '=' 'str' '(' ;`
 			[18, 4, function ($1,$2,$3,$4) {
@@ -885,7 +891,7 @@ function materializer_Error(type) {
 }
 
 /** The pseudoconstruction `type` is used to serialize references to constructor functions of 
-registered types. For example, `type(Date)` materializes to the `Date` function.
+registered types. For example, `type("Date")` materializes to the `Date` function.
 */
 function type(f) {
 	this.typeConstructor = f;
