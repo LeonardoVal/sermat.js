@@ -47,7 +47,7 @@ var serialize = (function () {
 	}
 	
 	function __serializeString__(str) {
-		return '"'+ str.replace(/[\\\"]/g, '\\$&') +'"';
+		return JSON.stringify(str);
 	}
 	
 	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
@@ -98,12 +98,12 @@ var serialize = (function () {
 		*/
 			i = 0;
 			output += '{'+ eol2;
-			for (var key in obj) {
+			Object.keys(obj).forEach(function (key) {
 				output += (i++ ? ','+ eol2 : '')+ 
 					(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
 					(ctx.pretty ? ' : ' : ':') + 
 					__serializeValue__(ctx, obj[key], eol2);
-			}
+			});
 			output += eol +'}';
 		} else { 
 		/** Constructions is the term used to custom serializations registered by the user for 
