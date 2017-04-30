@@ -26,6 +26,10 @@ var BASIC_MODE = 0,
 	BINDING_MODE = 2,
 	CIRCULAR_MODE = 3;
 
+function _getProto(obj) {
+	return typeof Object.getPrototypeOf === 'function' ? Object.getPrototypeOf(obj) : obj.__proto__;
+}
+	
 /** Serialization method can be called as `serialize` or `ser`.
 */
 var serialize = (function () {
@@ -91,38 +95,46 @@ var serialize = (function () {
 				output += (i ? ','+ eol2 : '')+ __serializeValue__(ctx, obj[i], eol2);
 			}
 			output += eol +']';
-		} else if (obj.constructor === Object || !ctx.useConstructions) { // Object literals.
-		/** An object literal is serialized as a sequence of key-value pairs separated by commas 
-			between braces. Each pair is joined by a colon. This is the same syntax that 
-			Javascript's object literals follow.
-		*/
-			i = 0;
-			output += '{'+ eol2;
-			Object.keys(obj).forEach(function (key) {
-				output += (i++ ? ','+ eol2 : '')+ 
-					(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
-					(ctx.pretty ? ' : ' : ':') + 
-					__serializeValue__(ctx, obj[key], eol2);
-			});
-			output += eol +'}';
-		} else { 
-		/** Constructions is the term used to custom serializations registered by the user for 
-			specific types. They are serialized as an identifier, followed by a sequence of values 
-			separated by commas between parenthesis. It ressembles a call to a function in 
-			Javascript.
-		*/
-			var record = ctx.record(obj.constructor) || ctx.autoInclude && ctx.include(obj.constructor);
-			if (!record) {
-				raise('serialize', 'Unknown type "'+ ctx.sermat.identifier(obj.constructor) +'"!', { unknownType: obj });
+		} else {
+			var objProto = _getProto(obj);
+			if (obj.constructor === Object || !ctx.useConstructions || 
+				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) { // Object literals.
+			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
+				between braces. Each pair is joined by a colon. This is the same syntax that 
+				Javascript's object literals follow.
+			*/
+				i = 0;
+				output += '{'+ eol2;
+				Object.keys(obj).forEach(function (key) {
+					output += (i++ ? ','+ eol2 : '')+ 
+						(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
+						(ctx.pretty ? ' : ' : ':') + 
+						__serializeValue__(ctx, obj[key], eol2);
+				});
+				if (ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {
+					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
+						__serializeObject__(ctx, objProto, eol);
+				}
+				output += eol +'}';
+			} else { 
+			/** Constructions is the term used to custom serializations registered by the user for 
+				specific types. They are serialized as an identifier, followed by a sequence of values 
+				separated by commas between parenthesis. It ressembles a call to a function in 
+				Javascript.
+			*/
+				var record = ctx.record(obj.constructor) || ctx.autoInclude && ctx.include(obj.constructor);
+				if (!record) {
+					raise('serialize', 'Unknown type "'+ ctx.sermat.identifier(obj.constructor) +'"!', { unknownType: obj });
+				}
+				var args = record.serializer.call(ctx.sermat, obj),
+					id = record.identifier;
+				output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'('+ eol2;
+				for (i = 0, len = args.length; i < len; i++) {
+					output += (i ? ','+ eol2 : '') + 
+						__serializeValue__(ctx, args[i], eol2);
+				}
+				output += eol +')';
 			}
-			var args = record.serializer.call(ctx.sermat, obj),
-				id = record.identifier;
-			output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'('+ eol2;
-			for (i = 0, len = args.length; i < len; i++) {
-				output += (i ? ','+ eol2 : '') + 
-					__serializeValue__(ctx, args[i], eol2);
-			}
-			output += eol +')';
 		}
 		ctx.parents.pop();
 		return output;
@@ -149,12 +161,16 @@ var serialize = (function () {
 + `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
 	all objects are treated as literals (the same way JSON does). It is `true` by default.
 	
++ `climbPrototypes=true`: If `true`, every time an object's constructor is not an own property of 
+	its prototype, its prototype will be serialized as the `__proto__` property.
+	
 + `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable. 
 */
 			mode: mode,
 			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
 			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
 			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions),
+			climbPrototypes: coalesce(modifiers.climbPrototypes, this.modifiers.climbPrototypes),
 			pretty: pretty
 		}, obj, pretty ? '\n' : '');
 	};

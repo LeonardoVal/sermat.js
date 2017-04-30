@@ -15,6 +15,15 @@ function construct(id, obj, args) {
 	}
 }
 
+function _setProto(obj, proto) {
+	if (typeof Object.setPrototypeOf === 'function') {
+		return Object.setPrototypeOf(obj, proto);
+	} else {
+		obj.__proto__ = proto;
+		return obj;
+	}
+}
+
 var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+\/)*/,
 	RE_NUM = /[+-]?(?:Infinity|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
 	RE_STR = /\"(?:[^\\\"]|\\[^\n])*\"|``/,
@@ -153,7 +162,11 @@ function materialize(source) {
 	function parseMember(obj) {
 		var k = parseKey();
 		shift(':');
-		obj[k] = parseValue();
+		if (k === '__proto__') {
+			_setProto(obj, parseValue());
+		} else {
+			obj[k] = parseValue();
+		}
 		return obj;
 	}
 

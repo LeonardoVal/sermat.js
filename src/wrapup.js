@@ -15,6 +15,7 @@ function Sermat(params) {
 	member(__modifiers__, 'allowUndefined', coalesce(params.allowUndefined, false), 5);
 	member(__modifiers__, 'autoInclude', coalesce(params.autoInclude, true), 5);
 	member(__modifiers__, 'useConstructions', coalesce(params.useConstructions, true), 5);
+	member(__modifiers__, 'climbPrototypes', coalesce(params.climbPrototypes, true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
