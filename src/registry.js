@@ -25,7 +25,7 @@ function identifier(type, must) {
 		|| type.name
 		|| (FUNCTION_ID_RE.exec(type +'') || [])[1];
 	if (!id && must) {
-		raise('identifier', "Could not found id for type!", { type: type });
+		throw new Error("Sermat.identifier: Could not found id for type "+ type +"!");
 	}
 	return id;
 }
@@ -50,7 +50,7 @@ constructor with the list of values in the text.
 */
 function register(registry, spec) {
 	if (typeof spec.type !== 'function') {
-		raise('register', "No constructor found for type ("+ spec +")!", { spec: spec });
+		throw new Error("Sermat.register: No constructor found for type ("+ spec +")!");
 	}
 	spec = {
 		type: spec.type,
@@ -63,17 +63,17 @@ function register(registry, spec) {
 	var id = spec.identifier;
 	['true', 'false','null','NaN','Infinity',''].forEach(function (invalidId) {
 		if (id === invalidId) {
-			raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
+			throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
 		}
 	});
 	if (registry.hasOwnProperty(id)) {
-		raise('register', "Construction '"+ id +"' is already registered!", { spec: spec });
+		throw new Error("Sermat.register: Construction '"+ id +"' is already registered!");
 	}
 	if (typeof spec.serializer !== 'function') {
-		raise('register', "Serializer for '"+ id +"' is not a function!", { spec: spec });
+		throw new Error("Sermat.register: Serializer for '"+ id +"' is not a function!");
 	}
 	if (typeof spec.materializer !== 'function') {
-		raise('register', "Materializer for '"+ id +"' is not a function!", { spec: spec });
+		throw new Error("Sermat.register: Materializer for '"+ id +"' is not a function!");
 	}
 	Object.freeze(spec);
 	registry[id] = spec;
@@ -90,7 +90,7 @@ function register(registry, spec) {
 */
 function remove(registry, id) {
 	if (!registry.hasOwnProperty(id)) {
-		raise('remove', "A construction for '"+ id +"' has not been registered!", { identifier: id });
+		throw new Error("Sermat.remove: A construction for '"+ id +"' has not been registered!");
 	}
 	var r = registry[id];
 	delete registry[id];
@@ -132,7 +132,7 @@ function include(arg) {
 				return this.include(arg.__SERMAT__.include);
 			}
 		}
-		default: raise('include', "Could not include ("+ arg +")!", { arg: arg });
+		default: throw new Error("Sermat.include: Could not include ("+ arg +")!");
 	}
 }
 
@@ -160,6 +160,6 @@ function exclude(arg) {
 				return r;
 			}
 		}
-		default: raise('exclude', "Could not exclude ("+ arg +")!", { arg: arg });
+		default: throw new Error("Sermat.exclude: Could not exclude ("+ arg +")!");
 	}
 }

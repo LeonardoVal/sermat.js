@@ -1,16 +1,9 @@
 define([], /** Library wrapper and layout.
 */
 function __init__() { "use strict";
-	/** Some utility functions used in the library.
-	*/
-	function raise(context, message, data) {
-		var error = new Error("Sermat."+ context +': '+ message);
-		if (data) {
-			error.data = data;
-		}
-		throw error;
-	}
-
+	
+/** Utility functions used in the library.
+*/
 	function member(obj, id, value, flags) {
 		flags = flags|0;
 		Object.defineProperty(obj, id, {
@@ -21,10 +14,23 @@ function __init__() { "use strict";
 		});
 	}
 
-	function coalesce(v1, v2) {
-		return typeof v1 === 'undefined' ? v2 : v1;		
+	function ownPropDefault(obj, prop, defaultValue) {
+		return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;		
 	}
 	
+	var _getProto = Object.getPrototypeOf || function _getProto(obj) {
+			return obj.__proto__;
+		},
+		_setProto = Object.setPrototypeOf || function _setProto(obj, proto) {
+			obj.__proto__ = proto;
+			return obj;
+		},
+		_assign = Object.assign || function _assign(objTo, objFrom) {
+			Object.keys(objFrom).forEach(function (k) {
+				objTo[k] = objFrom[k];
+			});
+			return r;
+		};
 /** See `__epilogue__.js`.
 */
 
@@ -55,7 +61,7 @@ function identifier(type, must) {
 		|| type.name
 		|| (FUNCTION_ID_RE.exec(type +'') || [])[1];
 	if (!id && must) {
-		raise('identifier', "Could not found id for type!", { type: type });
+		throw new Error("Sermat.identifier: Could not found id for type "+ type +"!");
 	}
 	return id;
 }
@@ -80,7 +86,7 @@ constructor with the list of values in the text.
 */
 function register(registry, spec) {
 	if (typeof spec.type !== 'function') {
-		raise('register', "No constructor found for type ("+ spec +")!", { spec: spec });
+		throw new Error("Sermat.register: No constructor found for type ("+ spec +")!");
 	}
 	spec = {
 		type: spec.type,
@@ -93,17 +99,17 @@ function register(registry, spec) {
 	var id = spec.identifier;
 	['true', 'false','null','NaN','Infinity',''].forEach(function (invalidId) {
 		if (id === invalidId) {
-			raise('register', "Invalid identifier '"+ id +"'!", { spec: spec });
+			throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
 		}
 	});
 	if (registry.hasOwnProperty(id)) {
-		raise('register', "Construction '"+ id +"' is already registered!", { spec: spec });
+		throw new Error("Sermat.register: Construction '"+ id +"' is already registered!");
 	}
 	if (typeof spec.serializer !== 'function') {
-		raise('register', "Serializer for '"+ id +"' is not a function!", { spec: spec });
+		throw new Error("Sermat.register: Serializer for '"+ id +"' is not a function!");
 	}
 	if (typeof spec.materializer !== 'function') {
-		raise('register', "Materializer for '"+ id +"' is not a function!", { spec: spec });
+		throw new Error("Sermat.register: Materializer for '"+ id +"' is not a function!");
 	}
 	Object.freeze(spec);
 	registry[id] = spec;
@@ -120,7 +126,7 @@ function register(registry, spec) {
 */
 function remove(registry, id) {
 	if (!registry.hasOwnProperty(id)) {
-		raise('remove', "A construction for '"+ id +"' has not been registered!", { identifier: id });
+		throw new Error("Sermat.remove: A construction for '"+ id +"' has not been registered!");
 	}
 	var r = registry[id];
 	delete registry[id];
@@ -162,7 +168,7 @@ function include(arg) {
 				return this.include(arg.__SERMAT__.include);
 			}
 		}
-		default: raise('include', "Could not include ("+ arg +")!", { arg: arg });
+		default: throw new Error("Sermat.include: Could not include ("+ arg +")!");
 	}
 }
 
@@ -190,7 +196,7 @@ function exclude(arg) {
 				return r;
 			}
 		}
-		default: raise('exclude', "Could not exclude ("+ arg +")!", { arg: arg });
+		default: throw new Error("Sermat.exclude: Could not exclude ("+ arg +")!");
 	}
 }
 
@@ -222,27 +228,41 @@ var BASIC_MODE = 0,
 	BINDING_MODE = 2,
 	CIRCULAR_MODE = 3;
 
-function _getProto(obj) {
-	return typeof Object.getPrototypeOf === 'function' ? Object.getPrototypeOf(obj) : obj.__proto__;
-}
-	
 /** Serialization method can be called as `serialize` or `ser`.
 */
 var serialize = (function () {
 	function __serializeValue__(ctx, value, eol) {
 		switch (typeof value) {
-			case 'undefined': {
-				if (ctx.allowUndefined) {
-					return 'null';
-				} else {
-					raise('serialize', "Cannot serialize undefined value!");
-				}
-			}
+			case 'undefined': return __serializeUndefined__(ctx);
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return __serializeString__(value);
 			case 'function': // Continue to object, using Function's serializer if it is registered.
 			case 'object': return __serializeObject__(ctx, value, eol);
+		}
+	}
+	
+	/** The `undefined` special value can be handled in many ways, depending on the `onUndefined`
+	modifier. If it is a constructor for a subtype of `Error`, it is used to throw an exception. If
+	it other type function, it is used as a callback. Else the value is serialized as it is, even if
+	it is `undefined` itself.
+	*/
+	function __serializeUndefined__(ctx) {
+		var u = ctx.onUndefined;
+		switch (typeof u) {
+			case 'undefined':
+				return 'undefined';
+			case 'function': {
+				if (u.prototype instanceof Error) {
+					throw new u("Sermat.ser: Cannot serialize undefined value!");
+				} else {
+					u = u.call(null); // Use the given function as callback.
+					if (typeof u === 'undefined') {
+						return 'undefined';
+					} // else continue to the default case.
+				}
+			}
+			default: return __serializeValue__(ctx, u);
 		}
 	}
 	
@@ -258,7 +278,7 @@ var serialize = (function () {
 		if (!obj) {
 			return 'null';
 		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
-			raise('serialize', "Circular reference detected!", { circularReference: obj });
+			throw new TypeError("Sermat.ser: Circular reference detected!");
 		}
 		var output = '', 
 			i, len;
@@ -271,7 +291,7 @@ var serialize = (function () {
 				if (ctx.mode & BINDING_MODE) {
 					return '$'+ i;
 				} else {
-					raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
+					throw new TypeError("Sermat.ser: Repeated reference detected!");
 				}
 			} else {
 				i = ctx.visited.push(obj) - 1;
@@ -283,22 +303,15 @@ var serialize = (function () {
 		ctx.parents.push(obj);
 		var eol2 = eol && eol +'\t';
 		if (Array.isArray(obj)) { // Arrays.
-		/** An array is serialized as a sequence of values separated by commas between brackets, as 
-			arrays are written in plain Javascript. 
-		*/
-			output += '['+ eol2;
-			for (i = 0, len = obj.length; i < len; i++) {
-				output += (i ? ','+ eol2 : '')+ __serializeValue__(ctx, obj[i], eol2);
-			}
-			output += eol +']';
+			output += __serializeArray__(ctx, obj, eol, eol2);
 		} else {
-			var objProto = _getProto(obj);
-			if (obj.constructor === Object || !ctx.useConstructions || 
-				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) { // Object literals.
 			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
 				between braces. Each pair is joined by a colon. This is the same syntax that 
 				Javascript's object literals follow.
 			*/
+			var objProto = _getProto(obj);
+			if (obj.constructor === Object || !ctx.useConstructions || 
+				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
 				i = 0;
 				output += '{'+ eol2;
 				Object.keys(obj).forEach(function (key) {
@@ -307,6 +320,11 @@ var serialize = (function () {
 						(ctx.pretty ? ' : ' : ':') + 
 						__serializeValue__(ctx, obj[key], eol2);
 				});
+			/** The object's prototype not having its constructor as an own property is understood
+				as an indication that the prototype has been altered, and hence needs to be 
+				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
+				added to the serialization as the `__proto__` property. 
+			*/
 				if (ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {
 					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
 						__serializeObject__(ctx, objProto, eol);
@@ -314,13 +332,15 @@ var serialize = (function () {
 				output += eol +'}';
 			} else { 
 			/** Constructions is the term used to custom serializations registered by the user for 
-				specific types. They are serialized as an identifier, followed by a sequence of values 
-				separated by commas between parenthesis. It ressembles a call to a function in 
-				Javascript.
+				specific types. They are serialized as an identifier, followed by a sequence of 
+				values 	separated by commas between parenthesis. It ressembles a call to a function 
+				in Javascript.
 			*/
-				var record = ctx.record(obj.constructor) || ctx.autoInclude && ctx.include(obj.constructor);
+				var record = ctx.record(obj.constructor) || ctx.autoInclude 
+						&& ctx.include(obj.constructor);
 				if (!record) {
-					raise('serialize', 'Unknown type "'+ ctx.sermat.identifier(obj.constructor) +'"!', { unknownType: obj });
+					throw new TypeError("Sermat.ser: Unknown type \""+
+						ctx.sermat.identifier(obj.constructor) +"\"!");
 				}
 				var args = record.serializer.call(ctx.sermat, obj),
 					id = record.identifier;
@@ -336,10 +356,33 @@ var serialize = (function () {
 		return output;
 	}
 
+	function __serializeArray__(ctx, obj, eol, eol2) {
+		/** An array is serialized as a sequence of values separated by commas between brackets, as 
+			arrays are written in plain Javascript. 
+		*/
+		var output = '['+ eol2;
+		if (obj.length > 0) {
+			output += __serializeValue__(ctx, obj[0], eol2);
+			for (var i = 1, len = obj.length; i < len; i++) {
+				output += ','+ eol2 + __serializeValue__(ctx, obj[i], eol2);
+			}
+		}
+		output += eol +']';
+		var keys = Object.keys(obj).filter(isNaN);
+		if (keys.length > 0) {
+			var props = {};
+			keys.forEach(function (k) {
+				props[k] = obj[k];
+			});
+			output = 'Array('+ output +','+ __serializeObject__(ctx, props, eol2) +')';
+		}
+		return output;
+	}
+	
 	return function serialize(obj, modifiers) {
 		modifiers = modifiers || this.modifiers;
-		var mode = coalesce(modifiers.mode, this.modifiers.mode),
-			pretty = !!coalesce(modifiers.pretty, this.modifiers.pretty);
+		var mode = ownPropDefault(modifiers, 'mode', this.modifiers.mode),
+			pretty = !!ownPropDefault(modifiers, 'pretty', this.modifiers.pretty);
 		return __serializeValue__({
 			visited: mode === REPEAT_MODE ? null : [],
 			parents: [],
@@ -348,8 +391,10 @@ var serialize = (function () {
 			include: this.include.bind(this),
 /** Besides the `mode`, other modifiers of the serialization include:
 
-+ `allowUndefined`: If `true` allows undefined values to be serialized as `null`. If `false` (the 
-	default) any undefined value inside the given object will raise an error.
++ `onUndefined=TypeError`: If it is a constructor for a subtype of `Error`, it is used to throw an 
+	exception when an undefined is found. If it is other type function, it is used as a callback. 
+	Else the value of this modifier is serialized as in place of the undefined value, and if it is 
+	undefined itself the `undefined` string is used.
 
 + `autoInclude`: If `true` forces the registration of types found during the serialization, but not
 	in the construction registry.
@@ -363,10 +408,10 @@ var serialize = (function () {
 + `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable. 
 */
 			mode: mode,
-			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
-			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
-			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions),
-			climbPrototypes: coalesce(modifiers.climbPrototypes, this.modifiers.climbPrototypes),
+			onUndefined: ownPropDefault(modifiers, 'onUndefined', this.modifiers.onUndefined),
+			autoInclude: ownPropDefault(modifiers, 'autoInclude', this.modifiers.autoInclude),
+			useConstructions: ownPropDefault(modifiers, 'useConstructions', this.modifiers.useConstructions),
+			climbPrototypes: ownPropDefault(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
 			pretty: pretty
 		}, obj, pretty ? '\n' : '');
 	};
@@ -391,16 +436,7 @@ function construct(id, obj, args) {
 	if (record) {
 		return record.materializer.call(this, obj, args);
 	} else {
-		raise('construct', "Cannot materialize construction for '"+ id +"'", { invalidId: id });
-	}
-}
-
-function _setProto(obj, proto) {
-	if (typeof Object.setPrototypeOf === 'function') {
-		return Object.setPrototypeOf(obj, proto);
-	} else {
-		obj.__proto__ = proto;
-		return obj;
+		throw new SyntaxError("Sermat.construct: Cannot materialize type '"+ id +"'");
 	}
 }
 
@@ -418,11 +454,15 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 		+')|('+ RE_BIND.source
 		+')|('+ RE_SYMBOLS.source 
 		+')|$)'),
-	TOKENS = 'nsib';
-
-function materialize(source) {
+	TOKENS = 'nsib',
+	/** These are the constant values handled by the format.
+	*/
+	CONSTANTS = { undefined: void 0, true: true, false: false, null: null, 
+		NaN: NaN, Infinity: Infinity };
+	
+function materialize(source, bindings) {
+	bindings = bindings ? _setProto({}, bindings) : {};
 	var input = source +'', offset = 0,
-		bindings = {},
 		construct = this.construct.bind(this),
 		token, text;
 
@@ -459,8 +499,8 @@ function materialize(source) {
 			line++;
 			return '';
 		});
-		throw new SyntaxError(msg +" at line "+ (line + 1) +" column "+ (offset - lineStart + 1) 
-			+" (offset "+ (offset + 1) +")!");
+		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
+			(offset - lineStart + 1) +" (offset "+ (offset + 1) +")!");
 	}
 
 	function shift(expected) {
@@ -486,8 +526,8 @@ function materialize(source) {
 				return parseBind();
 			case 'i':
 				nextToken();
-				if ('true false null NaN Infinity'.indexOf(t) >= 0) {
-					return eval(t);
+				if (CONSTANTS.hasOwnProperty(t)) {
+					return CONSTANTS[t];
 				} else {
 					shift('(');
 					return parseConstruction(t, null);
@@ -554,6 +594,9 @@ function materialize(source) {
 		var id = text;
 		nextToken();
 		if (token === '=') {
+			if (bindings.hasOwnProperty(id)) {
+				error("Binding "+ id +" cannot be reassigned");
+			}
 			nextToken();
 			switch (token) {
 				case '[':
@@ -675,20 +718,10 @@ function signature() {
 function checkSignature(id, regexp, obj, args) {
 	var types = signature.apply(this, [obj].concat(args));
 	if (!regexp.exec(types)) {
-		raise('checkSignature', "Wrong arguments for construction of "+ id +" ("+ types +")!", 
-			{ id: id, obj: obj, args: args });
+		throw new TypeError("Sermat.checkSignature: Wrong arguments for construction of "+ id 
+			+" ("+ types +")!");
 	}
 	return true;
-}
-
-var assign = Object.assign; //TODO Polyfill.
-
-function ownProps(obj) {
-	var r = {};
-	Object.keys(obj).forEach(function (k) {
-		r[k] = obj[k];
-	});
-	return r;
 }
 
 /** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first 
@@ -702,26 +735,26 @@ var CONSTRUCTIONS = {};
 */
 	[Boolean,
 		function serialize_Boolean(value) {
-			return Object.keys(value).length > 0 ? [!!value, ownProps(value)] : [!!value];
+			return Object.keys(value).length > 0 ? [!!value, _assign({}, value)] : [!!value];
 		},
 		function materialize_Boolean(obj, args) {
-			return args && assign(new Boolean(args[0]), args[1]);
+			return args && _assign(new Boolean(args[0]), args[1]);
 		}
 	],
 	[Number,
 		function serialize_Number(value) {
-			return Object.keys(value).length > 0 ? [+value, ownProps(value)] : [+value];
+			return Object.keys(value).length > 0 ? [+value, _assign({}, value)] : [+value];
 		},
 		function materialize_Number(obj, args) {
-			return args && assign(new Number(args[0]), args[1]);
+			return args && _assign(new Number(args[0]), args[1]);
 		}
 	],
 	[String,
 		function serialize_String(value) {
-			return Object.keys(value).length > 0 ? [value +'', ownProps(value)] : [value +'']; //TODO props!
+			return Object.keys(value).length > 0 ? [value +'', _assign({}, value)] : [value +''];
 		},
 		function materialize_String(obj, args) {
-			return args && assign(new String(args[0]), args[1]);
+			return args && _assign(new String(args[0]), args[1]);
 		}
 	],
 	[Object,
@@ -734,10 +767,10 @@ var CONSTRUCTIONS = {};
 	],
 	[Array,
 		function serialize_Array(value) { // Should never be called.
-			return Object.keys(value).length > 0 ? [value, ownProps(value)] : [value]; 
+			return Object.keys(value).length > 0 ? [value, _assign({}, value)] : [value]; 
 		},
 		function materialize_Array(obj, args) {
-			return args && assign(new Array(args[0]), args[1]);
+			return args && _assign(new Array(args[0]), args[1]);
 		}
 	],
 
@@ -750,12 +783,12 @@ var CONSTRUCTIONS = {};
 			if (!comps) {
 				raise('serialize_RegExp', "Cannot serialize RegExp "+ value +"!", { value: value });
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], ownProps(value)] 
+			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_RegExp(obj, args /* [regexp, flags] */) {
 			return args && checkSignature('RegExp', /^(,string){1,2}(,Object)?$/, obj, args)
-				&& assign(new RegExp(args[0], typeof args[1] === 'string' ? args[1] : ''), 
+				&& _assign(new RegExp(args[0], typeof args[1] === 'string' ? args[1] : ''), 
 					typeof args[1] === 'object' ? args[1] : args[2]);
 		}
 	],
@@ -769,14 +802,14 @@ var CONSTRUCTIONS = {};
 				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), 
 				value.getUTCMilliseconds()];
 			if (Object.keys(value).length > 0) {
-				r.push(ownProps(value));
+				r.push(_assign({}, value));
 			}
 			return r;
 		},
 		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
 			if (args && checkSignature('Date', /^(,number){1,7}(,Object)?$/, obj, args)) {
 				var props = typeof args[args.length-1] === 'object' ? args.pop() : null;
-				return assign(new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, 
+				return _assign(new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, 
 					args[4] |0, args[5] |0, args[6] |0)), props);
 			} else {
 				return null;
@@ -794,12 +827,12 @@ var CONSTRUCTIONS = {};
 			if (!comps) {
 				raise('serialize_Function', "Could not serialize Function "+ value +"!", { value: value });
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], ownProps(value)] 
+			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_Function(obj, args) {
 			return args && checkSignature('Function', /^(,string){2}(,Object)?$/, obj, args) 
-				&& assign(new Function(args[0], args[1]), args[2]);
+				&& _assign(new Function(args[0], args[1]), args[2]);
 		}
 	],
 	
@@ -849,7 +882,7 @@ function type(f) {
 	this.typeConstructor = f;
 }
 
-member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({
+member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 	identifier: 'type',
 	type: type,
 	serializer: function serialize_type(value) {
@@ -886,11 +919,11 @@ function Sermat(params) {
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
-	member(__modifiers__, 'mode', coalesce(params.mode, BASIC_MODE), 5);
-	member(__modifiers__, 'allowUndefined', coalesce(params.allowUndefined, false), 5);
-	member(__modifiers__, 'autoInclude', coalesce(params.autoInclude, true), 5);
-	member(__modifiers__, 'useConstructions', coalesce(params.useConstructions, true), 5);
-	member(__modifiers__, 'climbPrototypes', coalesce(params.climbPrototypes, true), 5);
+	member(__modifiers__, 'mode', ownPropDefault(params, 'mode', BASIC_MODE), 5);
+	member(__modifiers__, 'onUndefined', ownPropDefault(params, 'onUndefined', TypeError), 5);
+	member(__modifiers__, 'autoInclude', ownPropDefault(params, 'autoInclude', true), 5);
+	member(__modifiers__, 'useConstructions', ownPropDefault(params, 'useConstructions', true), 5);
+	member(__modifiers__, 'climbPrototypes', ownPropDefault(params, 'climbPrototypes', true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.

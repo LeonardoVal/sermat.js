@@ -17,23 +17,23 @@ Sermat goals are the following:
 
 ### Minor changes
 	
-Sermat addresses some minor quirks of JSON. Firstly, serializing `undefined` values will raise an error, unless explicitly permitted. In that case `undefined` will be transformed to `null` in a consistent manner. 
+Sermat addresses some minor quirks of JSON. Firstly, serializing `undefined` values will raise an error by default. The modifier 'onUndefined' can be set to transform `undefined` values in a consistent manner. 
 
 ```javascript
 JSON.stringify(undefined);
 // Results in undefined
 Sermat.serialize(undefined);
 // Raises "Sermat.serialize: Cannot serialize undefined value!"
-Sermat.serialize(undefined, { allowUndefined: true });
+Sermat.serialize(undefined, { onUndefined: null });
 // Results in "null"
 
 JSON.stringify({ a: undefined });
 // Results in "{}"
-Sermat.serialize({ a: undefined }, { allowUndefined: true });
+Sermat.serialize({ a: undefined }, { onUndefined: null });
 // Results in "{a:null}"
 JSON.stringify([undefined]);
 // Results in "[null]"
-Sermat.serialize([undefined], { allowUndefined: true });
+Sermat.serialize([undefined], { onUndefined: null });
 // Results in "[null]"
 ```
 
@@ -68,10 +68,19 @@ Point2D.__SERMAT__ = {
 	}
 };
 Sermat.include(Point2D);
-Sermat.serialize(new Point2D(44, 173)); // Results in: 'mylib.Point2D(44,173)'
+Sermat.serialize(new Point2D(44, 173)); // Results in: 'mylib.Point2D(44,173)'.
 ```
 
 The serializer function must return the list of values to put between parenthesis. The materializer function will rebuild the instance using these values. Further details are explained later on.
+
+Constructions are also used in infrequent situations, like arrays with assigned properties.
+```javascript
+var array = [1,2,3,4];
+array.x = 'x';
+array.true = true;
+Sermat.serialize(array);
+// Results like this: 'Array([1,2,3,4], {x:"x",true:"true"})'.
+```
 
 ### References 
 

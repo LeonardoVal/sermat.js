@@ -30,20 +30,10 @@ function signature() {
 function checkSignature(id, regexp, obj, args) {
 	var types = signature.apply(this, [obj].concat(args));
 	if (!regexp.exec(types)) {
-		raise('checkSignature', "Wrong arguments for construction of "+ id +" ("+ types +")!", 
-			{ id: id, obj: obj, args: args });
+		throw new TypeError("Sermat.checkSignature: Wrong arguments for construction of "+ id 
+			+" ("+ types +")!");
 	}
 	return true;
-}
-
-var assign = Object.assign; //TODO Polyfill.
-
-function ownProps(obj) {
-	var r = {};
-	Object.keys(obj).forEach(function (k) {
-		r[k] = obj[k];
-	});
-	return r;
 }
 
 /** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first 
@@ -57,26 +47,26 @@ var CONSTRUCTIONS = {};
 */
 	[Boolean,
 		function serialize_Boolean(value) {
-			return Object.keys(value).length > 0 ? [!!value, ownProps(value)] : [!!value];
+			return Object.keys(value).length > 0 ? [!!value, _assign({}, value)] : [!!value];
 		},
 		function materialize_Boolean(obj, args) {
-			return args && assign(new Boolean(args[0]), args[1]);
+			return args && _assign(new Boolean(args[0]), args[1]);
 		}
 	],
 	[Number,
 		function serialize_Number(value) {
-			return Object.keys(value).length > 0 ? [+value, ownProps(value)] : [+value];
+			return Object.keys(value).length > 0 ? [+value, _assign({}, value)] : [+value];
 		},
 		function materialize_Number(obj, args) {
-			return args && assign(new Number(args[0]), args[1]);
+			return args && _assign(new Number(args[0]), args[1]);
 		}
 	],
 	[String,
 		function serialize_String(value) {
-			return Object.keys(value).length > 0 ? [value +'', ownProps(value)] : [value +'']; //TODO props!
+			return Object.keys(value).length > 0 ? [value +'', _assign({}, value)] : [value +''];
 		},
 		function materialize_String(obj, args) {
-			return args && assign(new String(args[0]), args[1]);
+			return args && _assign(new String(args[0]), args[1]);
 		}
 	],
 	[Object,
@@ -89,10 +79,10 @@ var CONSTRUCTIONS = {};
 	],
 	[Array,
 		function serialize_Array(value) { // Should never be called.
-			return Object.keys(value).length > 0 ? [value, ownProps(value)] : [value]; 
+			return Object.keys(value).length > 0 ? [value, _assign({}, value)] : [value]; 
 		},
 		function materialize_Array(obj, args) {
-			return args && assign(new Array(args[0]), args[1]);
+			return args && _assign(new Array(args[0]), args[1]);
 		}
 	],
 
@@ -105,12 +95,12 @@ var CONSTRUCTIONS = {};
 			if (!comps) {
 				raise('serialize_RegExp', "Cannot serialize RegExp "+ value +"!", { value: value });
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], ownProps(value)] 
+			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_RegExp(obj, args /* [regexp, flags] */) {
 			return args && checkSignature('RegExp', /^(,string){1,2}(,Object)?$/, obj, args)
-				&& assign(new RegExp(args[0], typeof args[1] === 'string' ? args[1] : ''), 
+				&& _assign(new RegExp(args[0], typeof args[1] === 'string' ? args[1] : ''), 
 					typeof args[1] === 'object' ? args[1] : args[2]);
 		}
 	],
@@ -124,14 +114,14 @@ var CONSTRUCTIONS = {};
 				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), 
 				value.getUTCMilliseconds()];
 			if (Object.keys(value).length > 0) {
-				r.push(ownProps(value));
+				r.push(_assign({}, value));
 			}
 			return r;
 		},
 		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
 			if (args && checkSignature('Date', /^(,number){1,7}(,Object)?$/, obj, args)) {
 				var props = typeof args[args.length-1] === 'object' ? args.pop() : null;
-				return assign(new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, 
+				return _assign(new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, 
 					args[4] |0, args[5] |0, args[6] |0)), props);
 			} else {
 				return null;
@@ -149,12 +139,12 @@ var CONSTRUCTIONS = {};
 			if (!comps) {
 				raise('serialize_Function', "Could not serialize Function "+ value +"!", { value: value });
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], ownProps(value)] 
+			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_Function(obj, args) {
 			return args && checkSignature('Function', /^(,string){2}(,Object)?$/, obj, args) 
-				&& assign(new Function(args[0], args[1]), args[2]);
+				&& _assign(new Function(args[0], args[1]), args[2]);
 		}
 	],
 	
@@ -204,7 +194,7 @@ function type(f) {
 	this.typeConstructor = f;
 }
 
-member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({
+member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 	identifier: 'type',
 	type: type,
 	serializer: function serialize_type(value) {

@@ -30,9 +30,16 @@
 	
 	it(" with undefined values.", function () {
 		function test(sermat) {
-			expect(sermat.serialize.bind(Sermat, undefined)).toThrow();
-			expect(sermat.serialize.bind(Sermat, undefined, 0)).toThrow();
-			expect(sermat.serialize(undefined, { allowUndefined: 1 })).toBe("null");
+			expect(sermat.serialize.bind(sermat, undefined))
+				.toThrow(new TypeError("Sermat.ser: Cannot serialize undefined value!"));
+			expect(sermat.serialize.bind(sermat, undefined, 0))
+				.toThrow(new TypeError("Sermat.ser: Cannot serialize undefined value!"));
+			expect(sermat.serialize(undefined, { onUndefined: null })).toBe("null");
+			expect(sermat.serialize(undefined, { onUndefined: 123 })).toBe("123");
+			expect(sermat.serialize.bind(sermat, undefined, { onUndefined: SyntaxError }))
+				.toThrow(new SyntaxError("Sermat.ser: Cannot serialize undefined value!"));
+			expect(sermat.serialize(undefined, { onUndefined: function () { return false; } }))
+				.toBe("false");
 		}
 		test(Sermat);
 		test(new Sermat());
@@ -129,7 +136,7 @@
 	it(" with errors.", function () {
 		var sermat = new Sermat();
 		['', ' \n\t', '// comment ', '/* comment */',
-		 'undefined', 'TRUE', 'False', 'NuLL',
+		 'TRUE', 'False', 'NuLL',
 		 '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
 		 "'null'", '"a', '"\\"', '"\\u12"',
 		 '[', ']', '[,1]', '[1,]', '[,]',

@@ -26,31 +26,45 @@ var BASIC_MODE = 0,
 	BINDING_MODE = 2,
 	CIRCULAR_MODE = 3;
 
-function _getProto(obj) {
-	return typeof Object.getPrototypeOf === 'function' ? Object.getPrototypeOf(obj) : obj.__proto__;
-}
-	
 /** Serialization method can be called as `serialize` or `ser`.
 */
-var serialize = (function () {
-	function __serializeValue__(ctx, value, eol) {
+function serialize(obj, modifiers) {
+	function serializeValue(value, eol) {
 		switch (typeof value) {
-			case 'undefined': {
-				if (ctx.allowUndefined) {
-					return 'null';
-				} else {
-					raise('serialize', "Cannot serialize undefined value!");
-				}
-			}
+			case 'undefined': return serializeUndefined();
 			case 'boolean':   
 			case 'number': return value +'';
-			case 'string': return __serializeString__(value);
+			case 'string': return serializeString(value);
 			case 'function': // Continue to object, using Function's serializer if it is registered.
-			case 'object': return __serializeObject__(ctx, value, eol);
+			case 'object': return serializeObject(value, eol);
 		}
 	}
 	
-	function __serializeString__(str) {
+	/** The `undefined` special value can be handled in many ways, depending on the `onUndefined`
+	modifier. If it is a constructor for a subtype of `Error`, it is used to throw an exception. If
+	it other type function, it is used as a callback. Else the value is serialized as it is, even if
+	it is `undefined` itself.
+	*/
+	function serializeUndefined() {
+		var u = this.onUndefined;
+		switch (typeof u) {
+			case 'undefined':
+				return 'undefined';
+			case 'function': {
+				if (u.prototype instanceof Error) {
+					throw new u("Sermat.ser: Cannot serialize undefined value!");
+				} else {
+					u = u.call(null); // Use the given function as callback.
+					if (typeof u === 'undefined') {
+						return 'undefined';
+					} // else continue to the default case.
+				}
+			}
+			default: return serializeValue(this, u);
+		}
+	}
+	
+	function serializeString(str) {
 		return JSON.stringify(str);
 	}
 	
@@ -58,24 +72,24 @@ var serialize = (function () {
 	of the current object. This is useful to check for circular references. The `visited` list holds
 	all previously serialized objects, and is used to check for repeated references and bindings.
 	*/
-	function __serializeObject__(ctx, obj, eol) {
+	function serializeObject(obj, eol) {
 		if (!obj) {
 			return 'null';
-		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
-			raise('serialize', "Circular reference detected!", { circularReference: obj });
+		} else if (this.parents.indexOf(obj) >= 0 && this.mode !== CIRCULAR_MODE) {
+			throw new TypeError("Sermat.ser: Circular reference detected!");
 		}
 		var output = '', 
 			i, len;
 		/** If `ctx.visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
 		not have to be checked. This is only an optimization.
 		*/
-		if (ctx.visited) {
+		if (this.visited) {
 			i = ctx.visited.indexOf(obj);
 			if (i >= 0) {
 				if (ctx.mode & BINDING_MODE) {
 					return '$'+ i;
 				} else {
-					raise('serialize', "Repeated reference detected!", { repeatedReference: obj });
+					throw new TypeError("Sermat.ser: Repeated reference detected!");
 				}
 			} else {
 				i = ctx.visited.push(obj) - 1;
@@ -87,51 +101,51 @@ var serialize = (function () {
 		ctx.parents.push(obj);
 		var eol2 = eol && eol +'\t';
 		if (Array.isArray(obj)) { // Arrays.
-		/** An array is serialized as a sequence of values separated by commas between brackets, as 
-			arrays are written in plain Javascript. 
-		*/
-			output += '['+ eol2;
-			for (i = 0, len = obj.length; i < len; i++) {
-				output += (i ? ','+ eol2 : '')+ __serializeValue__(ctx, obj[i], eol2);
-			}
-			output += eol +']';
+			output += serializeArray(ctx, obj, eol, eol2);
 		} else {
-			var objProto = _getProto(obj);
-			if (obj.constructor === Object || !ctx.useConstructions || 
-				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) { // Object literals.
 			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
 				between braces. Each pair is joined by a colon. This is the same syntax that 
 				Javascript's object literals follow.
 			*/
+			var objProto = _getProto(obj);
+			if (obj.constructor === Object || !ctx.useConstructions || 
+				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
 				i = 0;
 				output += '{'+ eol2;
 				Object.keys(obj).forEach(function (key) {
 					output += (i++ ? ','+ eol2 : '')+ 
-						(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
+						(ID_REGEXP.exec(key) ? key : serializeString(key)) +
 						(ctx.pretty ? ' : ' : ':') + 
-						__serializeValue__(ctx, obj[key], eol2);
+						serializeValue(ctx, obj[key], eol2);
 				});
+			/** The object's prototype not having its constructor as an own property is understood
+				as an indication that the prototype has been altered, and hence needs to be 
+				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
+				added to the serialization as the `__proto__` property. 
+			*/
 				if (ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {
 					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
-						__serializeObject__(ctx, objProto, eol);
+						serializeObject(ctx, objProto, eol);
 				}
 				output += eol +'}';
 			} else { 
 			/** Constructions is the term used to custom serializations registered by the user for 
-				specific types. They are serialized as an identifier, followed by a sequence of values 
-				separated by commas between parenthesis. It ressembles a call to a function in 
-				Javascript.
+				specific types. They are serialized as an identifier, followed by a sequence of 
+				values 	separated by commas between parenthesis. It ressembles a call to a function 
+				in Javascript.
 			*/
-				var record = ctx.record(obj.constructor) || ctx.autoInclude && ctx.include(obj.constructor);
+				var record = ctx.record(obj.constructor) || ctx.autoInclude 
+						&& ctx.include(obj.constructor);
 				if (!record) {
-					raise('serialize', 'Unknown type "'+ ctx.sermat.identifier(obj.constructor) +'"!', { unknownType: obj });
+					throw new TypeError("Sermat.ser: Unknown type \""+
+						ctx.sermat.identifier(obj.constructor) +"\"!");
 				}
 				var args = record.serializer.call(ctx.sermat, obj),
 					id = record.identifier;
-				output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'('+ eol2;
+				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2;
 				for (i = 0, len = args.length; i < len; i++) {
 					output += (i ? ','+ eol2 : '') + 
-						__serializeValue__(ctx, args[i], eol2);
+						serializeValue(ctx, args[i], eol2);
 				}
 				output += eol +')';
 			}
@@ -140,20 +154,44 @@ var serialize = (function () {
 		return output;
 	}
 
-	return function serialize(obj, modifiers) {
-		modifiers = modifiers || this.modifiers;
-		var mode = coalesce(modifiers.mode, this.modifiers.mode),
-			pretty = !!coalesce(modifiers.pretty, this.modifiers.pretty);
-		return __serializeValue__({
-			visited: mode === REPEAT_MODE ? null : [],
-			parents: [],
-			sermat: this,
-			record: this.record.bind(this),
-			include: this.include.bind(this),
+	function serializeArray(ctx, obj, eol, eol2) {
+		/** An array is serialized as a sequence of values separated by commas between brackets, as 
+			arrays are written in plain Javascript. 
+		*/
+		var output = '['+ eol2;
+		if (obj.length > 0) {
+			output += serializeValue(ctx, obj[0], eol2);
+			for (var i = 1, len = obj.length; i < len; i++) {
+				output += ','+ eol2 + serializeValue(ctx, obj[i], eol2);
+			}
+		}
+		output += eol +']';
+		var keys = Object.keys(obj).filter(isNaN);
+		if (keys.length > 0) {
+			var props = {};
+			keys.forEach(function (k) {
+				props[k] = obj[k];
+			});
+			output = 'Array('+ output +','+ serializeObject(ctx, props, eol2) +')';
+		}
+		return output;
+	}
+	
+	modifiers = modifiers || this.modifiers;
+	var mode = ownPropDefault(modifiers, 'mode', this.modifiers.mode),
+		pretty = !!ownPropDefault(modifiers, 'pretty', this.modifiers.pretty);
+	return serializeValue({
+		visited: mode === REPEAT_MODE ? null : [],
+		parents: [],
+		sermat: this,
+		record: this.record.bind(this),
+		include: this.include.bind(this),
 /** Besides the `mode`, other modifiers of the serialization include:
 
-+ `allowUndefined`: If `true` allows undefined values to be serialized as `null`. If `false` (the 
-	default) any undefined value inside the given object will raise an error.
++ `onUndefined=TypeError`: If it is a constructor for a subtype of `Error`, it is used to throw an 
+	exception when an undefined is found. If it is other type function, it is used as a callback. 
+	Else the value of this modifier is serialized as in place of the undefined value, and if it is 
+	undefined itself the `undefined` string is used.
 
 + `autoInclude`: If `true` forces the registration of types found during the serialization, but not
 	in the construction registry.
@@ -166,15 +204,14 @@ var serialize = (function () {
 	
 + `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable. 
 */
-			mode: mode,
-			allowUndefined: coalesce(modifiers.allowUndefined, this.modifiers.allowUndefined),
-			autoInclude: coalesce(modifiers.autoInclude, this.modifiers.autoInclude),
-			useConstructions: coalesce(modifiers.useConstructions, this.modifiers.useConstructions),
-			climbPrototypes: coalesce(modifiers.climbPrototypes, this.modifiers.climbPrototypes),
-			pretty: pretty
-		}, obj, pretty ? '\n' : '');
-	};
-})();
+		mode: mode,
+		onUndefined: ownPropDefault(modifiers, 'onUndefined', this.modifiers.onUndefined),
+		autoInclude: ownPropDefault(modifiers, 'autoInclude', this.modifiers.autoInclude),
+		useConstructions: ownPropDefault(modifiers, 'useConstructions', this.modifiers.useConstructions),
+		climbPrototypes: ownPropDefault(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
+		pretty: pretty
+	}, obj, pretty ? '\n' : '');
+}
 
 /** The function `serializeAsType` allows to add a reference to a constructor to the serialization.
 */

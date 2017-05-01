@@ -11,16 +11,7 @@ function construct(id, obj, args) {
 	if (record) {
 		return record.materializer.call(this, obj, args);
 	} else {
-		raise('construct', "Cannot materialize construction for '"+ id +"'", { invalidId: id });
-	}
-}
-
-function _setProto(obj, proto) {
-	if (typeof Object.setPrototypeOf === 'function') {
-		return Object.setPrototypeOf(obj, proto);
-	} else {
-		obj.__proto__ = proto;
-		return obj;
+		throw new SyntaxError("Sermat.construct: Cannot materialize type '"+ id +"'");
 	}
 }
 
@@ -38,11 +29,15 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 		+')|('+ RE_BIND.source
 		+')|('+ RE_SYMBOLS.source 
 		+')|$)'),
-	TOKENS = 'nsib';
-
-function materialize(source) {
+	TOKENS = 'nsib',
+	/** These are the constant values handled by the format.
+	*/
+	CONSTANTS = { undefined: void 0, true: true, false: false, null: null, 
+		NaN: NaN, Infinity: Infinity };
+	
+function materialize(source, bindings) {
+	bindings = bindings || {};
 	var input = source +'', offset = 0,
-		bindings = {},
 		construct = this.construct.bind(this),
 		token, text;
 
@@ -79,8 +74,8 @@ function materialize(source) {
 			line++;
 			return '';
 		});
-		throw new SyntaxError(msg +" at line "+ (line + 1) +" column "+ (offset - lineStart + 1) 
-			+" (offset "+ (offset + 1) +")!");
+		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
+			(offset - lineStart + 1) +" (offset "+ (offset + 1) +")!");
 	}
 
 	function shift(expected) {
@@ -106,8 +101,8 @@ function materialize(source) {
 				return parseBind();
 			case 'i':
 				nextToken();
-				if ('true false null NaN Infinity'.indexOf(t) >= 0) {
-					return eval(t);
+				if (CONSTANTS.hasOwnProperty(t)) {
+					return CONSTANTS[t];
 				} else {
 					shift('(');
 					return parseConstruction(t, null);
@@ -174,6 +169,9 @@ function materialize(source) {
 		var id = text;
 		nextToken();
 		if (token === '=') {
+			if (bindings.hasOwnProperty(id)) {
+				error("Binding "+ id +" cannot be reassigned");
+			}
 			nextToken();
 			switch (token) {
 				case '[':
