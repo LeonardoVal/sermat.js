@@ -11,13 +11,13 @@ var sourceFiles = ['__prologue__',
 		return 'src/'+ module +'.js';
 	});
 
-var UMDWrapper = function (global, init) { "use strict";
+var UMDWrapper = function (init) { "use strict";
 	if (typeof define === 'function' && define.amd) {
 		define([], init); // AMD module.
 	} else if (typeof exports === 'object' && module.exports) {
 		module.exports = init(); // CommonJS module.
 	} else {
-		global.Sermat = init(); // Browser.
+		this.Sermat = init(); // Browser.
 	}
 };
 
@@ -56,7 +56,7 @@ module.exports = function(grunt) {
 			},
 			build_umd: {
 				options: {
-					banner: '('+ UMDWrapper +')(this,',
+					banner: '('+ UMDWrapper +').call(this,',
 					footer: ');'
 				},
 				src: sourceFiles,
