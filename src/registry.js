@@ -109,8 +109,12 @@ function include(arg) {
 		case 'function': {
 			spec = this.record(arg);
 			if (!spec && arg.__SERMAT__) {
-				arg.__SERMAT__.type = arg;
-				spec = this.register(arg.__SERMAT__);
+				spec = Object.assign({}, arg.__SERMAT__);
+				if (!arg.hasOwnProperty('__SERMAT__')) { // Inherited __SERMAT__
+					spec.identifier = this.identifier(arg, true);
+				}
+				spec.type = arg;
+				spec = this.register(spec);
 			}
 			return spec;
 		}

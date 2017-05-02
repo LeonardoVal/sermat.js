@@ -46,24 +46,27 @@ var CONSTRUCTIONS = {};
 	materialization.
 */
 	[Boolean,
-		function serialize_Boolean(value) {
-			return Object.keys(value).length > 0 ? [!!value, _assign({}, value)] : [!!value];
+		function serialize_Boolean(obj) {
+			var v = !!(obj.valueOf());
+			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_Boolean(obj, args) {
 			return args && _assign(new Boolean(args[0]), args[1]);
 		}
 	],
 	[Number,
-		function serialize_Number(value) {
-			return Object.keys(value).length > 0 ? [+value, _assign({}, value)] : [+value];
+		function serialize_Number(obj) {
+			var v = +(obj.valueOf())
+			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_Number(obj, args) {
 			return args && _assign(new Number(args[0]), args[1]);
 		}
 	],
 	[String,
-		function serialize_String(value) {
-			return Object.keys(value).length > 0 ? [value +'', _assign({}, value)] : [value +''];
+		function serialize_String(obj) {
+			var v = ''+ obj.valueOf();
+			return Object.keys(obj).length > obj.length ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_String(obj, args) {
 			return args && _assign(new String(args[0]), args[1]);
@@ -132,14 +135,15 @@ var CONSTRUCTIONS = {};
 /** + `Function` is not registered by default, but it is available. Functions are serialized as 
 	required by the `Function` constructor.
 */
+//FIXME Functions' names are not serialized.
+//FIXME Cannot serialize arrow functions.
 	[Function,
-		function serialize_Function(value) {
-			//FIXME Cannot serialize arrow functions.
-			var comps = /^function\s*[\w$]*\s*\(((:?\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(value +'');
+		function serialize_Function(obj) {
+			var comps = /^function\s*[\w$]*\s*\(((?:\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(obj +'');
 			if (!comps) {
-				raise('serialize_Function', "Could not serialize Function "+ value +"!", { value: value });
+				throw new TypeError("Could not serialize Function ("+ obj +")!");
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
+			return Object.keys(obj).length > 0 ? [comps[1], comps[2], _assign({}, obj)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_Function(obj, args) {
@@ -171,6 +175,7 @@ var CONSTRUCTIONS = {};
 	}), 1);
 });
 
+//FIXME Serialization does not consider own properties.
 function serialize_Error(obj) {
 	return [obj.message, obj.name || '', obj.stack || ''];
 }
@@ -200,7 +205,7 @@ member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 	serializer: function serialize_type(value) {
 		var rec = this.record(value.typeConstructor);
 		if (!rec) {
-			raise('serialize_type', "Unknown type \""+ identifier(value.typeConstructor) +"\"!", { type: value.typeConstructor });
+			throw new TypeError("Unknown type \""+ identifier(value.typeConstructor) +"\"!");
 		} else {
 			return [rec.identifier];
 		}
@@ -214,6 +219,6 @@ member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 				return rec.type;
 			}
 		}
-		raise('materialize_type', "Cannot materialize construction for type("+ args +")!", { args: args });
+		throw new TypeError("Cannot materialize construction for type("+ args +")!");
 	}
 }), 1);

@@ -120,4 +120,61 @@
 		expect(sermat1.sermat(sermat1.serializeAsType(String))).toBe(String);
 		expect(sermat1.ser(sermat1.serializeAsType(Sermat.CONSTRUCTIONS.type.type))).toBe('type("type")');
 	});
+	
+	it("with functions.", function () { ////////////////////////////////////////////////////////////
+		var sermat = new Sermat();
+		sermat.include('Function');
+		var f1 = function id(x) {
+				return x;
+			},
+			f2 = sermat.sermat(f1);
+		expect(typeof f2).toBe('function');
+		expect(f1(1)).toBe(f2(1));
+		expect(f1.length).toBe(f2.length);
+		expect(f1.name).toBe(f2.name);
+	});
+	
+	it("with objetified native types.", function () { //////////////////////////////////////////////
+		// Boolean
+		expect(Sermat.ser(Object(true))).toBe('Boolean(true)');
+		expect(Sermat.ser(new Boolean(false))).toBe('Boolean(false)');
+		expect(Sermat.ser(Object.assign(new Boolean(true), {x:1}))).toBe('Boolean(true,{x:1})');
+		// Number
+		expect(Sermat.ser(Object(1))).toBe('Number(1)');
+		expect(Sermat.ser(new Number(2.3))).toBe('Number(2.3)');
+		expect(Sermat.ser(Object.assign(new Number(45.678), {n:9}))).toBe('Number(45.678,{n:9})');
+		// String
+		expect(Sermat.ser(Object.assign("abc", {d:'f'}))).toBe('String("abc",{d:"f"})');
+		// Other objects
+		expect(Sermat.ser(Object.assign([1,2,3], {array:true}))).toBe('Array([1,2,3],{array:true})');
+		expect(Sermat.ser(Object.assign(/\w/i, {re:'w'}))).toBe('RegExp("\\\\w","i",{re:"w"})');
+		
+		var sermat = new Sermat();
+		sermat.include('Function');
+		expect(sermat.sermat(Object.assign(function add(x,y) {
+			return x + y;
+		}, {yes:true})).yes).toBe(true);
+	});
+	
+	it("with inherited __SERMAT__.", function () { /////////////////////////////////////////////////
+		function Type1(x) {
+			this.x = x;
+		}
+		Type1.__SERMAT__ = {
+			serializer: function (obj) {
+				return [obj.x];
+			}
+		};
+		function Type2(x) {
+			Type1.call(this, x);
+		}
+		Object.setPrototypeOf(Type2, Type1);
+
+		expect(Sermat.ser(new Type1(1))).toBe('Type1(1)');
+		expect(Sermat.ser(new Type2(1))).toBe('Type2(1)');
+		// This must fail because the subtype does not have an identifier.
+		expect(Sermat.ser.bind(Object.setPrototypeOf(function (x) {
+			Type1.call(this, x);
+		}, Type1))).toThrow();
+	});
 }); //// describe "Sermat".
