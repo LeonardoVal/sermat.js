@@ -22,8 +22,8 @@ function __init__() { "use strict";
 		});
 	}
 
-	function ownPropDefault(obj, prop, defaultValue) {
-		return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;		
+	function _modifier(obj, id, defaultValue) {
+		return obj && obj.hasOwnProperty(id) ? obj[id] : defaultValue;
 	}
 	
 	var _getProto = Object.getPrototypeOf || function _getProto(obj) {
@@ -153,8 +153,12 @@ function include(arg) {
 		case 'function': {
 			spec = this.record(arg);
 			if (!spec && arg.__SERMAT__) {
-				arg.__SERMAT__.type = arg;
-				spec = this.register(arg.__SERMAT__);
+				spec = Object.assign({}, arg.__SERMAT__);
+				if (!arg.hasOwnProperty('__SERMAT__')) { // Inherited __SERMAT__
+					spec.identifier = this.identifier(arg, true);
+				}
+				spec.type = arg;
+				spec = this.register(spec);
 			}
 			return spec;
 		}
@@ -236,168 +240,8 @@ var BASIC_MODE = 0,
 	BINDING_MODE = 2,
 	CIRCULAR_MODE = 3;
 
-/** Serialization method can be called as `serialize` or `ser`.
-*/
-var serialize = (function () {
-	function __serializeValue__(ctx, value, eol) {
-		switch (typeof value) {
-			case 'undefined': return __serializeUndefined__(ctx);
-			case 'boolean':   
-			case 'number': return value +'';
-			case 'string': return __serializeString__(value);
-			case 'function': // Continue to object, using Function's serializer if it is registered.
-			case 'object': return __serializeObject__(ctx, value, eol);
-		}
-	}
-	
-	/** The `undefined` special value can be handled in many ways, depending on the `onUndefined`
-	modifier. If it is a constructor for a subtype of `Error`, it is used to throw an exception. If
-	it other type function, it is used as a callback. Else the value is serialized as it is, even if
-	it is `undefined` itself.
-	*/
-	function __serializeUndefined__(ctx) {
-		var u = ctx.onUndefined;
-		switch (typeof u) {
-			case 'undefined':
-				return 'undefined';
-			case 'function': {
-				if (u.prototype instanceof Error) {
-					throw new u("Sermat.ser: Cannot serialize undefined value!");
-				} else {
-					u = u.call(null); // Use the given function as callback.
-					if (typeof u === 'undefined') {
-						return 'undefined';
-					} // else continue to the default case.
-				}
-			}
-			default: return __serializeValue__(ctx, u);
-		}
-	}
-	
-	function __serializeString__(str) {
-		return JSON.stringify(str);
-	}
-	
-	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
-	of the current object. This is useful to check for circular references. The `visited` list holds
-	all previously serialized objects, and is used to check for repeated references and bindings.
-	*/
-	function __serializeObject__(ctx, obj, eol) {
-		if (!obj) {
-			return 'null';
-		} else if (ctx.parents.indexOf(obj) >= 0 && ctx.mode !== CIRCULAR_MODE) {
-			throw new TypeError("Sermat.ser: Circular reference detected!");
-		}
-		var output = '', 
-			i, len;
-		/** If `ctx.visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
-		not have to be checked. This is only an optimization.
-		*/
-		if (ctx.visited) {
-			i = ctx.visited.indexOf(obj);
-			if (i >= 0) {
-				if (ctx.mode & BINDING_MODE) {
-					return '$'+ i;
-				} else {
-					throw new TypeError("Sermat.ser: Repeated reference detected!");
-				}
-			} else {
-				i = ctx.visited.push(obj) - 1;
-				if (ctx.mode & BINDING_MODE) {
-					output = '$'+ i + (ctx.pretty ? ' = ' : '=');
-				}
-			}
-		}
-		ctx.parents.push(obj);
-		var eol2 = eol && eol +'\t';
-		if (Array.isArray(obj)) { // Arrays.
-			output += __serializeArray__(ctx, obj, eol, eol2);
-		} else {
-			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
-				between braces. Each pair is joined by a colon. This is the same syntax that 
-				Javascript's object literals follow.
-			*/
-			var objProto = _getProto(obj);
-			if (obj.constructor === Object || !ctx.useConstructions || 
-				ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
-				i = 0;
-				output += '{'+ eol2;
-				Object.keys(obj).forEach(function (key) {
-					output += (i++ ? ','+ eol2 : '')+ 
-						(ID_REGEXP.exec(key) ? key : __serializeString__(key)) +
-						(ctx.pretty ? ' : ' : ':') + 
-						__serializeValue__(ctx, obj[key], eol2);
-				});
-			/** The object's prototype not having its constructor as an own property is understood
-				as an indication that the prototype has been altered, and hence needs to be 
-				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
-				added to the serialization as the `__proto__` property. 
-			*/
-				if (ctx.climbPrototypes && !objProto.hasOwnProperty('constructor')) {
-					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
-						__serializeObject__(ctx, objProto, eol);
-				}
-				output += eol +'}';
-			} else { 
-			/** Constructions is the term used to custom serializations registered by the user for 
-				specific types. They are serialized as an identifier, followed by a sequence of 
-				values 	separated by commas between parenthesis. It ressembles a call to a function 
-				in Javascript.
-			*/
-				var record = ctx.record(obj.constructor) || ctx.autoInclude 
-						&& ctx.include(obj.constructor);
-				if (!record) {
-					throw new TypeError("Sermat.ser: Unknown type \""+
-						ctx.sermat.identifier(obj.constructor) +"\"!");
-				}
-				var args = record.serializer.call(ctx.sermat, obj),
-					id = record.identifier;
-				output += (ID_REGEXP.exec(id) ? id : __serializeString__(id)) +'('+ eol2;
-				for (i = 0, len = args.length; i < len; i++) {
-					output += (i ? ','+ eol2 : '') + 
-						__serializeValue__(ctx, args[i], eol2);
-				}
-				output += eol +')';
-			}
-		}
-		ctx.parents.pop();
-		return output;
-	}
-
-	function __serializeArray__(ctx, obj, eol, eol2) {
-		/** An array is serialized as a sequence of values separated by commas between brackets, as 
-			arrays are written in plain Javascript. 
-		*/
-		var output = '['+ eol2;
-		if (obj.length > 0) {
-			output += __serializeValue__(ctx, obj[0], eol2);
-			for (var i = 1, len = obj.length; i < len; i++) {
-				output += ','+ eol2 + __serializeValue__(ctx, obj[i], eol2);
-			}
-		}
-		output += eol +']';
-		var keys = Object.keys(obj).filter(isNaN);
-		if (keys.length > 0) {
-			var props = {};
-			keys.forEach(function (k) {
-				props[k] = obj[k];
-			});
-			output = 'Array('+ output +','+ __serializeObject__(ctx, props, eol2) +')';
-		}
-		return output;
-	}
-	
-	return function serialize(obj, modifiers) {
-		modifiers = modifiers || this.modifiers;
-		var mode = ownPropDefault(modifiers, 'mode', this.modifiers.mode),
-			pretty = !!ownPropDefault(modifiers, 'pretty', this.modifiers.pretty);
-		return __serializeValue__({
-			visited: mode === REPEAT_MODE ? null : [],
-			parents: [],
-			sermat: this,
-			record: this.record.bind(this),
-			include: this.include.bind(this),
-/** Besides the `mode`, other modifiers of the serialization include:
+/** Serialization method can be called as `serialize` or `ser`. Besides the `mode`, other modifiers 
+of the serialization include:
 
 + `onUndefined=TypeError`: If it is a constructor for a subtype of `Error`, it is used to throw an 
 	exception when an undefined is found. If it is other type function, it is used as a callback. 
@@ -413,17 +257,170 @@ var serialize = (function () {
 + `climbPrototypes=true`: If `true`, every time an object's constructor is not an own property of 
 	its prototype, its prototype will be serialized as the `__proto__` property.
 	
-+ `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable. 
++ `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable.
 */
-			mode: mode,
-			onUndefined: ownPropDefault(modifiers, 'onUndefined', this.modifiers.onUndefined),
-			autoInclude: ownPropDefault(modifiers, 'autoInclude', this.modifiers.autoInclude),
-			useConstructions: ownPropDefault(modifiers, 'useConstructions', this.modifiers.useConstructions),
-			climbPrototypes: ownPropDefault(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
-			pretty: pretty
-		}, obj, pretty ? '\n' : '');
-	};
-})();
+function serialize(obj, modifiers) {
+	var mode = _modifier(modifiers, 'mode', this.modifiers.mode),
+		pretty = _modifier(modifiers, 'pretty', this.modifiers.pretty),
+		onUndefined = _modifier(modifiers, 'onUndefined', this.modifiers.onUndefined),
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
+		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
+		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
+		
+		visited = mode === REPEAT_MODE ? null : [],
+		parents = [],
+		sermat = this;
+
+	function serializeValue(value, eol) {
+		switch (typeof value) {
+			case 'undefined': return serializeUndefined();
+			case 'boolean':   
+			case 'number': return value +'';
+			case 'string': return serializeString(value);
+			case 'function': // Continue to object, using Function's serializer if it is registered.
+			case 'object': return serializeObject(value, eol);
+		}
+	}
+	
+	/** The `undefined` special value can be handled in many ways, depending on the `onUndefined`
+	modifier. If it is a constructor for a subtype of `Error`, it is used to throw an exception. If
+	it other type function, it is used as a callback. Else the value is serialized as it is, even if
+	it is `undefined` itself.
+	*/
+	function serializeUndefined() {
+		switch (typeof onUndefined) {
+			case 'undefined':
+				return 'undefined';
+			case 'function': {
+				if (onUndefined.prototype instanceof Error) {
+					throw new onUndefined("Sermat.ser: Cannot serialize undefined value!");
+				} else {
+					var v = onUndefined.call(null); // Use the given function as callback.
+					return (typeof v === 'undefined') ? 'undefined' : serializeValue(v);
+				}
+			}
+			default: return serializeValue(onUndefined);
+		}
+	}
+	
+	function serializeString(str) {
+		return JSON.stringify(str);
+	}
+	
+	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
+	of the current object. This is useful to check for circular references. The `visited` list holds
+	all previously serialized objects, and is used to check for repeated references and bindings.
+	*/
+	function serializeObject(obj, eol) {
+		if (!obj) {
+			return 'null';
+		} else if (parents.indexOf(obj) >= 0 && mode !== CIRCULAR_MODE) {
+			throw new TypeError("Sermat.ser: Circular reference detected!");
+		}
+		var output = '', 
+			i, len;
+		/** If `visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
+		not have to be checked. This is only an optimization.
+		*/
+		if (visited) {
+			i = visited.indexOf(obj);
+			if (i >= 0) {
+				if (mode & BINDING_MODE) {
+					return '$'+ i;
+				} else {
+					throw new TypeError("Sermat.ser: Repeated reference detected!");
+				}
+			} else {
+				i = visited.push(obj) - 1;
+				if (mode & BINDING_MODE) {
+					output = '$'+ i + (pretty ? ' = ' : '=');
+				}
+			}
+		}
+		parents.push(obj);
+		var eol2 = eol && eol +'\t';
+		if (Array.isArray(obj)) { // Arrays.
+			output += serializeArray(obj, eol, eol2);
+		} else {
+			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
+				between braces. Each pair is joined by a colon. This is the same syntax that 
+				Javascript's object literals follow.
+			*/
+			var objProto = _getProto(obj);
+			if (obj.constructor === Object || !useConstructions || 
+					climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
+				i = 0;
+				output += '{'+ eol2;
+				Object.keys(obj).forEach(function (key) {
+					output += (i++ ? ','+ eol2 : '')+ 
+						(ID_REGEXP.exec(key) ? key : serializeString(key)) +
+						(pretty ? ' : ' : ':') + 
+						serializeValue(obj[key], eol2);
+				});
+			/** The object's prototype not having its constructor as an own property is understood
+				as an indication that the prototype has been altered, and hence needs to be 
+				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
+				added to the serialization as the `__proto__` property. 
+			*/
+				if (climbPrototypes && !objProto.hasOwnProperty('constructor')) {
+					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
+						serializeObject(objProto, eol);
+				}
+				output += eol +'}';
+			} else { 
+			/** Constructions is the term used to custom serializations registered by the user for 
+				specific types. They are serialized as an identifier, followed by a sequence of 
+				values 	separated by commas between parenthesis. It ressembles a call to a function 
+				in Javascript.
+			*/
+				var record = sermat.record(obj.constructor) 
+					|| autoInclude && sermat.include(obj.constructor);
+				if (!record) {
+					throw new TypeError("Sermat.ser: Unknown type \""+ 
+						sermat.identifier(obj.constructor) +"\"!");
+				}
+				var args = record.serializer.call(sermat, obj),
+					id = record.identifier;
+				len = args.length
+				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2;
+				if (len > 0) {
+					output += serializeValue(args[0], eol2);
+					for (i = 1; i < len; i++) {
+						output += ','+ eol2 + serializeValue(args[i], eol2);
+					}
+				}
+				output += eol +')';
+			}
+		}
+		parents.pop();
+		return output;
+	}
+
+	function serializeArray(obj, eol, eol2) {
+		/** An array is serialized as a sequence of values separated by commas between brackets, as 
+			arrays are written in plain Javascript. 
+		*/
+		var output = '['+ eol2;
+		if (obj.length > 0) {
+			output += serializeValue(obj[0], eol2);
+			for (var i = 1, len = obj.length; i < len; i++) {
+				output += ','+ eol2 + serializeValue(obj[i], eol2);
+			}
+		}
+		output += eol +']';
+		var keys = Object.keys(obj).filter(isNaN);
+		if (keys.length > 0) {
+			var props = {};
+			keys.forEach(function (k) {
+				props[k] = obj[k];
+			});
+			output = 'Array('+ output +','+ serializeObject(props, eol2) +')';
+		}
+		return output;
+	}
+	
+	return serializeValue(obj, pretty ? '\n' : '');
+}
 
 /** The function `serializeAsType` allows to add a reference to a constructor to the serialization.
 */
@@ -468,11 +465,12 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 	CONSTANTS = { undefined: void 0, true: true, false: false, null: null, 
 		NaN: NaN, Infinity: Infinity };
 	
-function materialize(source, bindings) {
-	bindings = bindings ? _setProto({}, bindings) : {};
-	var input = source +'', offset = 0,
-		construct = this.construct.bind(this),
-		token, text;
+function materialize(source, modifiers) {
+	var input = source +'', 
+		offset = 0,
+		token, text,
+		bindings = modifiers && modifiers.bindings || {},
+		sermat = this;
 
 	function nextToken() {
 		var tokens = LEXER.exec(input),
@@ -617,7 +615,7 @@ function materialize(source, bindings) {
 					var cons = text;
 					nextToken();
 					shift('(');
-					return parseConstruction(cons, bindings[id] = construct(cons, null, null));
+					return parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
 				default:
 					return bindings[id] = parseValue();
 			}
@@ -638,7 +636,7 @@ function materialize(source, bindings) {
 		} else {
 			nextToken();
 		}
-		return construct(cons, obj, args);
+		return sermat.construct(cons, obj, args);
 	}
 	
 	// parseStart
@@ -742,24 +740,27 @@ var CONSTRUCTIONS = {};
 	materialization.
 */
 	[Boolean,
-		function serialize_Boolean(value) {
-			return Object.keys(value).length > 0 ? [!!value, _assign({}, value)] : [!!value];
+		function serialize_Boolean(obj) {
+			var v = !!(obj.valueOf());
+			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_Boolean(obj, args) {
 			return args && _assign(new Boolean(args[0]), args[1]);
 		}
 	],
 	[Number,
-		function serialize_Number(value) {
-			return Object.keys(value).length > 0 ? [+value, _assign({}, value)] : [+value];
+		function serialize_Number(obj) {
+			var v = +(obj.valueOf())
+			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_Number(obj, args) {
 			return args && _assign(new Number(args[0]), args[1]);
 		}
 	],
 	[String,
-		function serialize_String(value) {
-			return Object.keys(value).length > 0 ? [value +'', _assign({}, value)] : [value +''];
+		function serialize_String(obj) {
+			var v = ''+ obj.valueOf();
+			return Object.keys(obj).length > obj.length ? [v, _assign({}, obj)] : [v];
 		},
 		function materialize_String(obj, args) {
 			return args && _assign(new String(args[0]), args[1]);
@@ -828,14 +829,15 @@ var CONSTRUCTIONS = {};
 /** + `Function` is not registered by default, but it is available. Functions are serialized as 
 	required by the `Function` constructor.
 */
+//FIXME Functions' names are not serialized.
+//FIXME Cannot serialize arrow functions.
 	[Function,
-		function serialize_Function(value) {
-			//FIXME Cannot serialize arrow functions.
-			var comps = /^function\s*[\w$]*\s*\(((:?\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(value +'');
+		function serialize_Function(obj) {
+			var comps = /^function\s*[\w$]*\s*\(((?:\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(obj +'');
 			if (!comps) {
-				raise('serialize_Function', "Could not serialize Function "+ value +"!", { value: value });
+				throw new TypeError("Could not serialize Function ("+ obj +")!");
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
+			return Object.keys(obj).length > 0 ? [comps[1], comps[2], _assign({}, obj)] 
 				: [comps[1], comps[2]];
 		},
 		function materialize_Function(obj, args) {
@@ -867,6 +869,7 @@ var CONSTRUCTIONS = {};
 	}), 1);
 });
 
+//FIXME Serialization does not consider own properties.
 function serialize_Error(obj) {
 	return [obj.message, obj.name || '', obj.stack || ''];
 }
@@ -896,7 +899,7 @@ member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 	serializer: function serialize_type(value) {
 		var rec = this.record(value.typeConstructor);
 		if (!rec) {
-			raise('serialize_type', "Unknown type \""+ identifier(value.typeConstructor) +"\"!", { type: value.typeConstructor });
+			throw new TypeError("Unknown type \""+ identifier(value.typeConstructor) +"\"!");
 		} else {
 			return [rec.identifier];
 		}
@@ -910,7 +913,7 @@ member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
 				return rec.type;
 			}
 		}
-		raise('materialize_type', "Cannot materialize construction for type("+ args +")!", { args: args });
+		throw new TypeError("Cannot materialize construction for type("+ args +")!");
 	}
 }), 1);
 
@@ -927,11 +930,11 @@ function Sermat(params) {
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
-	member(__modifiers__, 'mode', ownPropDefault(params, 'mode', BASIC_MODE), 5);
-	member(__modifiers__, 'onUndefined', ownPropDefault(params, 'onUndefined', TypeError), 5);
-	member(__modifiers__, 'autoInclude', ownPropDefault(params, 'autoInclude', true), 5);
-	member(__modifiers__, 'useConstructions', ownPropDefault(params, 'useConstructions', true), 5);
-	member(__modifiers__, 'climbPrototypes', ownPropDefault(params, 'climbPrototypes', true), 5);
+	member(__modifiers__, 'mode', _modifier(params, 'mode', BASIC_MODE), 5);
+	member(__modifiers__, 'onUndefined', _modifier(params, 'onUndefined', TypeError), 5);
+	member(__modifiers__, 'autoInclude', _modifier(params, 'autoInclude', true), 5);
+	member(__modifiers__, 'useConstructions', _modifier(params, 'useConstructions', true), 5);
+	member(__modifiers__, 'climbPrototypes', _modifier(params, 'climbPrototypes', true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
