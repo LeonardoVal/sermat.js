@@ -35,11 +35,12 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 	CONSTANTS = { undefined: void 0, true: true, false: false, null: null, 
 		NaN: NaN, Infinity: Infinity };
 	
-function materialize(source, bindings) {
-	bindings = bindings || {};
-	var input = source +'', offset = 0,
-		construct = this.construct.bind(this),
-		token, text;
+function materialize(source, modifiers) {
+	var input = source +'', 
+		offset = 0,
+		token, text,
+		bindings = modifiers && modifiers.bindings || {},
+		sermat = this;
 
 	function nextToken() {
 		var tokens = LEXER.exec(input),
@@ -184,7 +185,7 @@ function materialize(source, bindings) {
 					var cons = text;
 					nextToken();
 					shift('(');
-					return parseConstruction(cons, bindings[id] = construct(cons, null, null));
+					return parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
 				default:
 					return bindings[id] = parseValue();
 			}
@@ -205,7 +206,7 @@ function materialize(source, bindings) {
 		} else {
 			nextToken();
 		}
-		return construct(cons, obj, args);
+		return sermat.construct(cons, obj, args);
 	}
 	
 	// parseStart
