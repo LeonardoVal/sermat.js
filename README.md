@@ -5,7 +5,7 @@ Sermat is a serialization and data exchange format, similar to [JSON](http://jso
 
 [![Built with Grunt](https://cdn.gruntjs.com/builtwith.png)](http://gruntjs.com/) [![NPM](https://nodei.co/npm/sermat.png?mini=true)](https://www.npmjs.com/package/sermat)
 
-## Design
+## Format
 
 Sermat goals are the following:
 
@@ -17,27 +17,46 @@ Sermat goals are the following:
 
 ### Minor changes
 	
-Sermat addresses some minor quirks of JSON. Firstly, serializing `undefined` values will raise an error by default. The modifier 'onUndefined' can be set to transform `undefined` values in a consistent manner. 
+Sermat addresses some minor quirks of JSON. Firstly, serializing `undefined` values will raise an error by default. The modifier `onUndefined` can be set to transform `undefined` values in a consistent manner. 
 
 ```javascript
-JSON.stringify(undefined);
+JSON.stringify(undefined)
 // Results in undefined
-Sermat.serialize(undefined);
-// Raises "Sermat.serialize: Cannot serialize undefined value!"
-Sermat.serialize(undefined, { onUndefined: null });
+Sermat.serialize(undefined)
+// Throws TypeError("Sermat.serialize: Cannot serialize undefined value!")
+Sermat.serialize(undefined, { onUndefined: null })
 // Results in "null"
+Sermat.serialize(undefined, { onUndefined: MyErrorType })
+// Throws MyErrorType("Sermat.serialize: Cannot serialize undefined value!")
+Sermat.serialize(undefined, { onUndefined: (void 0) })
+// Results in "undefined".
 
-JSON.stringify({ a: undefined });
+JSON.stringify({ a: undefined })
 // Results in "{}"
-Sermat.serialize({ a: undefined }, { onUndefined: null });
+Sermat.serialize({ a: undefined }, { onUndefined: null })
 // Results in "{a:null}"
-JSON.stringify([undefined]);
+JSON.stringify([undefined])
 // Results in "[null]"
-Sermat.serialize([undefined], { onUndefined: null });
+Sermat.serialize([undefined], { onUndefined: null })
 // Results in "[null]"
 ```
 
-`Infinity` and `NaN` values are allowed, as well as comments, using the block comment syntax of Javascript. Strings may have multiple lines between the double quotes. Also, some escape sequences that are valid in Javascript but not in JSON are accepted by Sermat (e.g. `'\v'` or `'\xA9'`). Keys in object literals don't have to be between double quotes if they comply with [Javascript's rules for identifiers](http://www.w3schools.com/js/js_variables.asp) and if all characters are in the range `[\x00-\x7F]` (dots and dashes are also allowed).
+`Infinity` and `NaN` values are allowed, as well as comments, using the block comment syntax of Javascript. Keys in object literals don't have to be between double quotes if they comply with [Javascript's rules for identifiers](http://www.w3schools.com/js/js_variables.asp) and if all characters are in the range `[\x00-\x7F]` (dots and dashes are also allowed).
+
+```javascript
+JSON.stringify(-Infinity)
+// Results in 'null'.
+Sermat.ser(Infinity)
+// Results in '-Infinity'.
+JSON.stringify(NaN)
+// Results in 'null'.
+Sermat.ser(NaN)
+// Results in 'NaN'.
+JSON.stringify({x:1,"y.z":2,"@":3});
+// Results in '{"x":1,"y.z":2,"@":3}'.
+Sermat.ser({x:1,"y.z":2,"@":3});
+// Results in '{x:1,y.z:2,"@":3}'.
+```
 
 ### Constructions
 
@@ -73,13 +92,14 @@ Sermat.serialize(new Point2D(44, 173)); // Results in: 'mylib.Point2D(44,173)'.
 
 The serializer function must return the list of values to put between parenthesis. The materializer function will rebuild the instance using these values. Further details are explained later on.
 
-Constructions are also used in infrequent situations, like arrays with assigned properties.
+Constructions are also used in some situations for native Javascript. For example when values like `true`, `12` or `[1,2,3]` are treated as objects.
 ```javascript
-var array = [1,2,3,4];
-array.x = 'x';
-array.true = true;
-Sermat.serialize(array);
-// Results like this: 'Array([1,2,3,4], {x:"x",true:"true"})'.
+Sermat.ser(Object(true));
+// Results in "Boolean(true)"
+Sermat.ser(Object.assign(Object(true), {x:1}));
+// Results in "Boolean(true,{x:1})".
+Sermat.serialize(Object.assign([1,2,3], {x:1}));
+// Results like this: 'Array([1,2,3],{x:1})'.
 ```
 
 ### References 
@@ -153,16 +173,48 @@ Refs.ALLOW_EMPTY_INSTANCES = true;
 Sermat.sermat(refs1); // Returns a copy of refs1.
 ```
 
+## Library
+
+The library has many versions available for browsers, [node](https://nodejs.org/docs/latest/api/modules.html), 
+[AMD](http://requirejs.org/docs/whyamd.html) and [UMD](https://github.com/umdjs/umd). `Sermat` is 
+the module, a singleton and a constructor of serializers and materializers.
+
+### Definitions
+
+Sermat objects have a `serialize` or `ser` method to serialize values, which is the equivalent to 
+`JSON.stringify`. The `materialize` or `mat` method is used to parse and rebuild a serialized value,
+which is equivalent to `JSON.parse`. The Sermat objects have a set of _modifiers_ to the behaviours
+of these methods:
+
++ `onUndefined=TypeError`: If it is a constructor for a subtype of `Error`, it is used to throw an 
+	exception when an undefined is found. If it is other type function, it is used as a callback. 
+	Else the value of this modifier is serialized as in place of the undefined value, and if it is 
+	undefined itself the `undefined` string is used.
+
++ `autoInclude`: If `true` forces the registration of types found during the serialization, but not
+	in the construction registry.
+	
++ `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and 
+	all objects are treated as literals (the same way JSON does). It is `true` by default.
+	
++ `climbPrototypes=true`: If `true`, every time an object's constructor is not an own property of 
+	its prototype, its prototype will be serialized as the `__proto__` property.
+	
++ `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable.
+
+Modifiers can also be overriden in the second argument of the methods.
+
 ### Pretty printing
 
 The serializer by default produces the text in a compressed form. A more human friendly version of 
-this text can be generated with the `pretty` option. It turns this:
+this text can be generated with the `pretty` option. Calling `Sermat.ser({a:[1,2,3],b:/\w+/i})` 
+results like this:
 
 ```
-{a:[1,2,3],b:RegExp("\w+","i")}
+{a:[1,2,3],b:RegExp("\\w+","i")}
 ```
 
-into this:
+while `Sermat.ser({a:[1,2,3],b:/\w+/i}, { pretty: true })` into this:
 
 ```
 {
@@ -172,7 +224,7 @@ into this:
 		3
 	],
 	b : RegExp(
-		"\w+",
+		"\\w+",
 		"i"
 	)
 }
