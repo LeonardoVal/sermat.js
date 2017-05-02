@@ -11,11 +11,11 @@ function Sermat(params) {
 	
 	params = params || {};
 	member(this, 'modifiers', __modifiers__);
-	member(__modifiers__, 'mode', ownPropDefault(params, 'mode', BASIC_MODE), 5);
-	member(__modifiers__, 'onUndefined', ownPropDefault(params, 'onUndefined', TypeError), 5);
-	member(__modifiers__, 'autoInclude', ownPropDefault(params, 'autoInclude', true), 5);
-	member(__modifiers__, 'useConstructions', ownPropDefault(params, 'useConstructions', true), 5);
-	member(__modifiers__, 'climbPrototypes', ownPropDefault(params, 'climbPrototypes', true), 5);
+	member(__modifiers__, 'mode', _modifier(params, 'mode', BASIC_MODE), 5);
+	member(__modifiers__, 'onUndefined', _modifier(params, 'onUndefined', TypeError), 5);
+	member(__modifiers__, 'autoInclude', _modifier(params, 'autoInclude', true), 5);
+	member(__modifiers__, 'useConstructions', _modifier(params, 'useConstructions', true), 5);
+	member(__modifiers__, 'climbPrototypes', _modifier(params, 'climbPrototypes', true), 5);
 	/** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`, 
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.

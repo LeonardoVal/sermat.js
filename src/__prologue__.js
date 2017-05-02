@@ -14,8 +14,8 @@ function __init__() { "use strict";
 		});
 	}
 
-	function ownPropDefault(obj, prop, defaultValue) {
-		return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;		
+	function _modifier(obj, id, defaultValue) {
+		return obj && obj.hasOwnProperty(id) ? obj[id] : defaultValue;
 	}
 	
 	var _getProto = Object.getPrototypeOf || function _getProto(obj) {
