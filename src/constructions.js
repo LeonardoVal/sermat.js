@@ -47,45 +47,52 @@ var CONSTRUCTIONS = {};
 */
 	[Boolean,
 		function serialize_Boolean(obj) {
-			var v = !!(obj.valueOf());
-			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
+			return _assign([obj.valueOf()], obj);
 		},
 		function materialize_Boolean(obj, args) {
-			return args && _assign(new Boolean(args[0]), args[1]);
+			return args && _assign(new Boolean(args.shift()), args);
 		}
 	],
 	[Number,
 		function serialize_Number(obj) {
-			var v = +(obj.valueOf())
-			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
+			return _assign([obj.valueOf()], obj);
 		},
 		function materialize_Number(obj, args) {
-			return args && _assign(new Number(args[0]), args[1]);
+			return args && _assign(new Number(args.shift()), args);
 		}
 	],
 	[String,
 		function serialize_String(obj) {
-			var v = ''+ obj.valueOf();
-			return Object.keys(obj).length > obj.length ? [v, _assign({}, obj)] : [v];
+			var r = [''+ obj.valueOf()],
+				len = obj.length;
+			Object.keys(obj).forEach(function (k) {
+				if ((k|0) - k !== 0) {
+					r[k] = obj[k];	
+				} else if (+k < 0 || +k >= obj.length) {
+					throw new TypeError('Sermat.ser: Cannot serialize String instances with'
+						+' integer properties (like <'+ k +'>)!');
+				}
+			});
+			return r;
 		},
 		function materialize_String(obj, args) {
-			return args && _assign(new String(args[0]), args[1]);
+			return args && _assign(new String(args.shift()), args);
 		}
 	],
 	[Object,
-		function serialize_Object(value) { // Should never be called.
-			return [value];
+		function serialize_Object(value) {
+			throw new TypeError("Sermat.ser: Object literals should not be serialized by a construction!"); 
 		},
 		function materialize_Object(obj, args) {
 			return args && Object.apply(null, args);
 		}
 	],
 	[Array,
-		function serialize_Array(value) { // Should never be called.
-			return Object.keys(value).length > 0 ? [value, _assign({}, value)] : [value]; 
+		function serialize_Array(value) {
+			throw new TypeError("Sermat.ser: Arrays should not be serialized by a construction!"); 
 		},
 		function materialize_Array(obj, args) {
-			return args && _assign(new Array(args[0]), args[1]);
+			return args;
 		}
 	],
 
@@ -164,7 +171,9 @@ var CONSTRUCTIONS = {};
 	[ReferenceError, serialize_Error, materializer_Error(ReferenceError)],
 	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
 	[TypeError, serialize_Error, materializer_Error(TypeError)],
-	[URIError, serialize_Error, materializer_Error(URIError)]
+	[URIError, serialize_Error, materializer_Error(URIError)],
+/**TODO Register $new & $extend
+*/
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -192,33 +201,8 @@ function materializer_Error(type) {
 	};
 }
 
-/** The pseudoconstruction `type` is used to serialize references to constructor functions of 
-registered types. For example, `type("Date")` materializes to the `Date` function.
-*/
-function type(f) {
-	this.typeConstructor = f;
+function $new() {
+	var args = arguments,
+		cons = args.shift();
+	return new (Function.prototype.bind.apply(cons, args))();	
 }
-
-member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
-	identifier: 'type',
-	type: type,
-	serializer: function serialize_type(value) {
-		var rec = this.record(value.typeConstructor);
-		if (!rec) {
-			throw new TypeError("Unknown type \""+ identifier(value.typeConstructor) +"\"!");
-		} else {
-			return [rec.identifier];
-		}
-	},
-	materializer: function materialize_type(obj, args) {
-		if (!args) {
-			return null;
-		} else if (checkSignature('type', /^,string$/, obj, args)) {
-			var rec = this.record(args[0]);
-			if (rec) {
-				return rec.type;
-			}
-		}
-		throw new TypeError("Cannot materialize construction for type("+ args +")!");
-	}
-}), 1);

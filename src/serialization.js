@@ -64,7 +64,7 @@ function serialize(obj, modifiers) {
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return serializeString(value);
-			case 'function': // Continue to object, using Function's serializer if it is registered.
+			case 'function': return serializeFunction(value, eol);
 			case 'object': return serializeObject(value, eol);
 		}
 	}
@@ -92,6 +92,16 @@ function serialize(obj, modifiers) {
 	
 	function serializeString(str) {
 		return JSON.stringify(str);
+	}
+	
+	function serializeFunction(f, eol) {
+		var rec = sermat.record(f);
+		if (rec) {
+			return '$'+ rec.identifier;
+		} else {
+			// Continue to object, using Function's serializer if it is registered.
+			return serializeObject(f, eol);
+		}
 	}
 	
 	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
@@ -133,27 +143,21 @@ function serialize(obj, modifiers) {
 				between braces. Each pair is joined by a colon. This is the same syntax that 
 				Javascript's object literals follow.
 			*/
-			var objProto = _getProto(obj);
+			var objProto = _getProto(obj),
+				elems = '';
 			if (obj.constructor === Object || !useConstructions || 
 					climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
-				i = 0;
-				output += '{'+ eol2;
-				Object.keys(obj).forEach(function (key) {
-					output += (i++ ? ','+ eol2 : '')+ 
-						(ID_REGEXP.exec(key) ? key : serializeString(key)) +
-						(pretty ? ' : ' : ':') + 
-						serializeValue(obj[key], eol2);
-				});
+				elems = serializeElements(obj, eol, eol2);
 			/** The object's prototype not having its constructor as an own property is understood
 				as an indication that the prototype has been altered, and hence needs to be 
 				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
 				added to the serialization as the `__proto__` property. 
 			*/
 				if (climbPrototypes && !objProto.hasOwnProperty('constructor')) {
-					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
-						serializeObject(objProto, eol);
+					elems += (elems ? ','+ eol2 : '') +'__proto__'+ (pretty ? ' : ' : ':')
+						+ serializeObject(objProto, eol);
 				}
-				output += eol +'}';
+				output += '{'+ eol2 + elems + eol +'}';
 			} else { 
 			/** Constructions is the term used to custom serializations registered by the user for 
 				specific types. They are serialized as an identifier, followed by a sequence of 
@@ -169,14 +173,8 @@ function serialize(obj, modifiers) {
 				var args = record.serializer.call(sermat, obj),
 					id = record.identifier;
 				len = args.length
-				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2;
-				if (len > 0) {
-					output += serializeValue(args[0], eol2);
-					for (i = 1; i < len; i++) {
-						output += ','+ eol2 + serializeValue(args[i], eol2);
-					}
-				}
-				output += eol +')';
+				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
+					+ serializeElements(args, eol, eol2) + eol +')';
 			}
 		}
 		parents.pop();
@@ -187,30 +185,26 @@ function serialize(obj, modifiers) {
 		/** An array is serialized as a sequence of values separated by commas between brackets, as 
 			arrays are written in plain Javascript. 
 		*/
-		var output = '['+ eol2;
-		if (obj.length > 0) {
-			output += serializeValue(obj[0], eol2);
-			for (var i = 1, len = obj.length; i < len; i++) {
-				output += ','+ eol2 + serializeValue(obj[i], eol2);
+		return '['+ eol2 + serializeElements(obj, eol, eol2) + eol +']';
+	}
+	
+	function serializeElements(obj, eol, eol2) {
+		var output = '',
+			sep = '',
+			i = 0;
+		Object.keys(obj).forEach(function (k) {
+			output += sep;
+			if ((k|0) - k !== 0) {
+				output += (ID_REGEXP.exec(k) ? k : serializeString(k)) + (pretty ? ' : ' : ':');
+			} else for (; k - i > 0; i++) {
+				output += serializeUndefined() +','+ eol2;
 			}
-		}
-		output += eol +']';
-		var keys = Object.keys(obj).filter(isNaN);
-		if (keys.length > 0) {
-			var props = {};
-			keys.forEach(function (k) {
-				props[k] = obj[k];
-			});
-			output = 'Array('+ output +','+ serializeObject(props, eol2) +')';
-		}
+			output += serializeValue(obj[k], eol2);
+			sep = ','+ eol2;
+			i++;
+		});
 		return output;
 	}
 	
 	return serializeValue(obj, pretty ? '\n' : '');
-}
-
-/** The function `serializeAsType` allows to add a reference to a constructor to the serialization.
-*/
-function serializeAsType(constructor) {
-	return new type(constructor);
 }
