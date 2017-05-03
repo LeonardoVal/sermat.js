@@ -1,6 +1,6 @@
 ﻿describe("Sermat", function () { "use strict";
 
-	it(" core definitions.", function () {
+	it("core definitions.", function () { //////////////////////////////////////////////////////////
 		expect(Sermat).toBeOfType("function");
 		expect(Sermat.identifier).toBeOfType("function");
 		expect(Sermat.register).toBeOfType("function");
@@ -15,7 +15,7 @@
 		expect(newSermat.materialize).toBeOfType("function");
 	});
 	
-	it(" with simple values.", function () {
+	it("with simple values.", function () { ////////////////////////////////////////////////////////
 		function test(sermat) {
 			expect(sermat.serialize(true)).toBe("true");
 			expect(sermat.serialize(false)).toBe("false");
@@ -28,7 +28,7 @@
 		test(new Sermat());
 	});
 	
-	it(" with undefined values.", function () {
+	it("with undefined values.", function () { /////////////////////////////////////////////////////
 		function test(sermat) {
 			expect(sermat.serialize.bind(sermat, undefined))
 				.toThrow(new TypeError("Sermat.ser: Cannot serialize undefined value!"));
@@ -45,7 +45,7 @@
 		test(new Sermat());
 	});
 	
-	it(" with numbers.", function () {
+	it("with numbers.", function () { //////////////////////////////////////////////////////////////
 		function test(sermat) {
 			var num;
 			for (var i = 0; i < 30; i++) {
@@ -67,7 +67,7 @@
 		test(new Sermat());
 	});
 	
-	it(" with strings.", function () {
+	it("with strings.", function () { //////////////////////////////////////////////////////////////
 		function checkString(sermat, text) {
 			var serialized = sermat.serialize(text);
 			try {
@@ -93,7 +93,7 @@
 		}
 	});
 	
-	it(" with arrays.", function () {
+	it("with arrays.", function () { ///////////////////////////////////////////////////////////////
 		function test(sermat) {
 			var array = [],
 				serialized = sermat.serialize(array);
@@ -109,7 +109,7 @@
 		test(new Sermat());
 	});
 	
-	it(" with object literals.", function () { 
+	it("with object literals.", function () { //////////////////////////////////////////////////////
 		[{}, {a:1}, {a:1,b:'x'}, {a:1,b:'x',c:true},
 		 {a:{b:1}}, {a:{b:1}, c:{d:'x'}}, {a:{b:{c:null}}},
 		 {true1:true}, {NaNa:NaN}
@@ -122,7 +122,7 @@
 		});
 	});
 	
-	it(" with comments.", function () {
+	it("with comments.", function () { /////////////////////////////////////////////////////////////
 		function test(sermat) {
 			expect(sermat.materialize('1 /* comment */')).toBe(1);
 			expect(sermat.materialize('/* comment */ true')).toBe(true);
@@ -133,7 +133,7 @@
 		test(new Sermat());
 	});
 	
-	it(" with errors.", function () {
+	it("with errors.", function () { ///////////////////////////////////////////////////////////////
 		var sermat = new Sermat();
 		['', ' \n\t', '// comment ', '/* comment */',
 		 'TRUE', 'False', 'NuLL',
@@ -147,7 +147,7 @@
 		})
 	});
 	
-	it(" with circular references.", function () {
+	it("with circular references.", function () { //////////////////////////////////////////////////
 		var obj = {};
 		obj.x = obj;
 		expect(Sermat.serialize.bind(Sermat, obj)).toThrow();
@@ -155,7 +155,7 @@
 		expect(Sermat.serialize(obj, { mode: Sermat.CIRCULAR_MODE })).toBe('$0={x:$0}');
 	});
 	
-	it(" with repeated objects.", function () {
+	it("with repeated objects.", function () { /////////////////////////////////////////////////////
 		var obj = {};
 		expect(Sermat.serialize.bind(Sermat, [obj, obj])).toThrow();
 		expect(Sermat.serialize.bind(Sermat, {a: obj, b: obj})).toThrow();
@@ -164,7 +164,7 @@
 		expect(Sermat.serialize({a: obj, b: obj}, { mode: Sermat.REPEAT_MODE })).toBe("{a:{},b:{}}");
 	});
 	
-	it(" with bindings.", function () {
+	it("with bindings.", function () { /////////////////////////////////////////////////////////////
 		var obj = {x:88},
 			serialized = Sermat.serialize([obj, obj], { mode: Sermat.BINDING_MODE }),
 			materialized = Sermat.materialize(serialized);
@@ -184,5 +184,23 @@
 		expect(Array.isArray(materialized)).toBe(true);
 		expect(materialized[0]).toBe(materialized[1].a);
 		expect(materialized[0]).toBe(materialized[1].b.c);
+	});
+	
+	it("with prototypes.", function () { ///////////////////////////////////////////////////////////
+		var obj1 = Object.assign(Object.create({x:1}),{y:2}),
+			obj2 = Sermat.sermat(obj1);
+		expect(obj2.x).toBe(1);
+		expect(obj2.y).toBe(2);
+		expect(obj2.hasOwnProperty('x')).toBe(false);
+		expect(obj2.hasOwnProperty('y')).toBe(true);
+		expect(Object.getPrototypeOf(obj2).hasOwnProperty('x')).toBe(true);
+		expect(Object.getPrototypeOf(obj2).constructor).toBe(Object);
+		
+		var obj3 = Sermat.mat('[{y:2,__proto__:$0={x:1}},{z:3,__proto__:$0}]');
+		expect(obj3[0].x).toBe(1);
+		expect(obj3[1].x).toBe(1);
+		expect(obj3[0].y).toBe(2);
+		expect(obj3[1].z).toBe(3);
+		expect(Object.getPrototypeOf(obj3[0])).toBe(Object.getPrototypeOf(obj3[1]));
 	});
 }); //// describe "Sermat".
