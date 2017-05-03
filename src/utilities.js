@@ -19,6 +19,22 @@ function serializeAsProperties(obj, properties, ownProperties) {
 	return [result];
 }
 
+/** `serializeWithConstructor` serializes the `obj` object with a list of properties inferred from
+the `constructor`'s formal argument list.
+*/
+function serializeWithConstructor(constructor, obj) {
+	var str = constructor +'',
+		comps = /^function\s*[\w$]*\s*\(([^)]*)\)\s*\{/.exec(str)
+		|| /^\(([^)]*)\)\s*=>/.exec(str);
+	if (comps && comps[1]) {
+		return comps[1].split(/\s*,\s*/).map(function (k) {
+			return obj[k];
+		});
+	} else {
+		throw new TypeError("Cannot infer a serialization from constructor ("+ constructor +")!");
+	}
+}
+
 /** `materializeWithConstructor` is a generic way of creating a new instance of the given type
 `constructor`. Basically a new object is built using the type's prototype, and then the constructor 
 is called on this object and the given arguments (`args`) to initialize it.
