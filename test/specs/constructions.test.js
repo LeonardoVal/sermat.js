@@ -112,13 +112,10 @@
 	});
 	
 	it("with types.", function () { ////////////////////////////////////////////////////////////////
-		expect(typeof Sermat.CONSTRUCTIONS.type).toBe('object');
 		var sermat1 = new Sermat();
-		expect(typeof sermat1.serializeAsType).toBe('function');
-		expect(sermat1.ser(sermat1.serializeAsType(Object))).toBe('type("Object")');
-		expect(sermat1.mat('type("Number")')).toBe(Number);
-		expect(sermat1.sermat(sermat1.serializeAsType(String))).toBe(String);
-		expect(sermat1.ser(sermat1.serializeAsType(Sermat.CONSTRUCTIONS.type.type))).toBe('type("type")');
+		expect(sermat1.ser(Object)).toBe('$Object');
+		expect(sermat1.mat('$Number')).toBe(Number);
+		expect(sermat1.sermat(String)).toBe(String);
 	});
 	
 	it("with functions.", function () { ////////////////////////////////////////////////////////////
@@ -138,22 +135,42 @@
 		// Boolean
 		expect(Sermat.ser(Object(true))).toBe('Boolean(true)');
 		expect(Sermat.ser(new Boolean(false))).toBe('Boolean(false)');
-		expect(Sermat.ser(Object.assign(new Boolean(true), {x:1}))).toBe('Boolean(true,{x:1})');
+		expect(Sermat.ser(Object.assign(new Boolean(true), {x:1}))).toBe('Boolean(true,x:1)');
 		// Number
 		expect(Sermat.ser(Object(1))).toBe('Number(1)');
 		expect(Sermat.ser(new Number(2.3))).toBe('Number(2.3)');
-		expect(Sermat.ser(Object.assign(new Number(45.678), {n:9}))).toBe('Number(45.678,{n:9})');
+		expect(Sermat.ser(Object.assign(new Number(45.678), {n:9}))).toBe('Number(45.678,n:9)');
 		// String
-		expect(Sermat.ser(Object.assign("abc", {d:'f'}))).toBe('String("abc",{d:"f"})');
+		expect(Sermat.ser(Object.assign("abc", {d:'f'}))).toBe('String("abc",d:"f")');
+		expect(Sermat.ser(Object.assign("abc", {2.3:4.5}))).toBe('String("abc","2.3":4.5)');
+		expect(Sermat.ser.bind(Object.assign("abc", {4:5}))).toThrow(); // Integer properties are not supported.
+		// Arrays
+		expect(Sermat.ser(Object.assign([1,2,3], {array:true}))).toBe('[1,2,3,array:true]');
+		expect(Sermat.ser(Object.assign([1,2,3], {4.5:6.78}))).toBe('[1,2,3,"4.5":6.78]');
+		expect(Sermat.ser(Object.assign([1,2,3], {4:5}), { onUndefined: 4 })).toBe('[1,2,3,4,5]');
 		// Other objects
-		expect(Sermat.ser(Object.assign([1,2,3], {array:true}))).toBe('Array([1,2,3],{array:true})');
-		expect(Sermat.ser(Object.assign(/\w/i, {re:'w'}))).toBe('RegExp("\\\\w","i",{re:"w"})');
+		expect(Sermat.ser(Object.assign(/\w/i, {re:'w'}))).toBe('RegExp("\\\\w","i",re:"w")');
 		
 		var sermat = new Sermat();
 		sermat.include('Function');
 		expect(sermat.sermat(Object.assign(function add(x,y) {
 			return x + y;
 		}, {yes:true})).yes).toBe(true);
+	});
+	
+	it("with default serializer and/or materializer.", function () { ///////////////////////////////
+		function Point3D(x, y, z) {
+			this.x = +x;
+			this.y = +y;
+			this.z = +z;
+		}
+		Point3D.__SERMAT__ = {};
+		var p1 = new Point3D(1,2,3);
+		expect(Sermat.ser(p1)).toBe('Point3D(1,2,3)');
+		var p2 = Sermat.sermat(p1);
+		expect(p2.x).toBe(1);
+		expect(p2.y).toBe(2);
+		expect(p2.z).toBe(3);
 	});
 	
 	it("with inherited __SERMAT__.", function () { /////////////////////////////////////////////////

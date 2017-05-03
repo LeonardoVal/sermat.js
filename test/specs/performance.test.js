@@ -110,7 +110,7 @@
 		time = testTime(STRING_TEST_CASES, Sermat.materialize, "Sermat.materialize");
 		console.log("String literal materialization time: "+ Math.round(time / charCount * 1e6) / 1e3 +"e-6 secs/char.");
 	});
-	
+
 	it("with structured values.", function () { ////////////////////////////////////////////////////
 		var STRUCTURE_TEST_CASES = [];
 		for (var min = 0; min < 4; min++) {
