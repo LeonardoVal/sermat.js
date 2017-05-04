@@ -63,7 +63,8 @@ constructor function is used, but this can be overriden by setting a `__SERMAT__
 function.
 */
 var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
-	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[\.-][a-zA-Z0-9_]+)*$/;
+	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[\.-][a-zA-Z0-9_]+)*$/,
+	INVALID_ID_RE = /^(true|false|null|undefined|NaN|Infinity|\$[\w\$]*)$/;
 function identifier(type, must) {
 	var id = (type.__SERMAT__ && type.__SERMAT__.identifier)
 		|| type.name
@@ -99,24 +100,19 @@ function register(registry, spec) {
 	spec = {
 		type: spec.type,
 		identifier: (spec.identifier || identifier(spec.type, true)).trim(),
-		serializer: spec.serializer,
+		serializer: spec.serializer || serializeWithConstructor.bind(this, spec.type),
 		materializer: spec.materializer || materializeWithConstructor.bind(this, spec.type),
 		global: !!spec.global,
 		include: spec.include
 	};
 	var id = spec.identifier;
-	['true', 'false','null','NaN','Infinity',''].forEach(function (invalidId) {
-		if (id === invalidId) {
-			throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
-		}
-	});
-	if (registry.hasOwnProperty(id)) {
+	if (INVALID_ID_RE.test(id)) {
+		throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
+	} else if (registry.hasOwnProperty(id)) {
 		throw new Error("Sermat.register: Construction '"+ id +"' is already registered!");
-	}
-	if (typeof spec.serializer !== 'function') {
+	} else if (typeof spec.serializer !== 'function') {
 		throw new Error("Sermat.register: Serializer for '"+ id +"' is not a function!");
-	}
-	if (typeof spec.materializer !== 'function') {
+	} else if (typeof spec.materializer !== 'function') {
 		throw new Error("Sermat.register: Materializer for '"+ id +"' is not a function!");
 	}
 	Object.freeze(spec);
@@ -259,6 +255,7 @@ of the serialization include:
 	
 + `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable.
 */
+//TODO Allow modifiers.bindings.
 function serialize(obj, modifiers) {
 	var mode = _modifier(modifiers, 'mode', this.modifiers.mode),
 		pretty = _modifier(modifiers, 'pretty', this.modifiers.pretty),
@@ -277,7 +274,7 @@ function serialize(obj, modifiers) {
 			case 'boolean':   
 			case 'number': return value +'';
 			case 'string': return serializeString(value);
-			case 'function': // Continue to object, using Function's serializer if it is registered.
+			case 'function': return serializeFunction(value, eol);
 			case 'object': return serializeObject(value, eol);
 		}
 	}
@@ -305,6 +302,16 @@ function serialize(obj, modifiers) {
 	
 	function serializeString(str) {
 		return JSON.stringify(str);
+	}
+	
+	function serializeFunction(f, eol) {
+		var rec = sermat.record(f);
+		if (rec) {
+			return '$'+ rec.identifier;
+		} else {
+			// Continue to object, using Function's serializer if it is registered.
+			return serializeObject(f, eol);
+		}
 	}
 	
 	/** During object serialization two lists are kept. The `parents` list holds all the ancestors 
@@ -346,27 +353,21 @@ function serialize(obj, modifiers) {
 				between braces. Each pair is joined by a colon. This is the same syntax that 
 				Javascript's object literals follow.
 			*/
-			var objProto = _getProto(obj);
+			var objProto = _getProto(obj),
+				elems = '';
 			if (obj.constructor === Object || !useConstructions || 
 					climbPrototypes && !objProto.hasOwnProperty('constructor')) {			
-				i = 0;
-				output += '{'+ eol2;
-				Object.keys(obj).forEach(function (key) {
-					output += (i++ ? ','+ eol2 : '')+ 
-						(ID_REGEXP.exec(key) ? key : serializeString(key)) +
-						(pretty ? ' : ' : ':') + 
-						serializeValue(obj[key], eol2);
-				});
+				elems = serializeElements(obj, eol, eol2);
 			/** The object's prototype not having its constructor as an own property is understood
 				as an indication that the prototype has been altered, and hence needs to be 
 				serialized. If the `climbPrototypes` modifier is `true`, the object's prototype is
 				added to the serialization as the `__proto__` property. 
 			*/
 				if (climbPrototypes && !objProto.hasOwnProperty('constructor')) {
-					output += (i++ ? ','+ eol2 : '')+ eol2 +'__proto__:'+ 
-						serializeObject(objProto, eol);
+					elems += (elems ? ','+ eol2 : '') +'__proto__'+ (pretty ? ' : ' : ':')
+						+ serializeObject(objProto, eol);
 				}
-				output += eol +'}';
+				output += '{'+ eol2 + elems + eol +'}';
 			} else { 
 			/** Constructions is the term used to custom serializations registered by the user for 
 				specific types. They are serialized as an identifier, followed by a sequence of 
@@ -382,14 +383,8 @@ function serialize(obj, modifiers) {
 				var args = record.serializer.call(sermat, obj),
 					id = record.identifier;
 				len = args.length
-				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2;
-				if (len > 0) {
-					output += serializeValue(args[0], eol2);
-					for (i = 1; i < len; i++) {
-						output += ','+ eol2 + serializeValue(args[i], eol2);
-					}
-				}
-				output += eol +')';
+				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
+					+ serializeElements(args, eol, eol2) + eol +')';
 			}
 		}
 		parents.pop();
@@ -400,32 +395,28 @@ function serialize(obj, modifiers) {
 		/** An array is serialized as a sequence of values separated by commas between brackets, as 
 			arrays are written in plain Javascript. 
 		*/
-		var output = '['+ eol2;
-		if (obj.length > 0) {
-			output += serializeValue(obj[0], eol2);
-			for (var i = 1, len = obj.length; i < len; i++) {
-				output += ','+ eol2 + serializeValue(obj[i], eol2);
+		return '['+ eol2 + serializeElements(obj, eol, eol2) + eol +']';
+	}
+	
+	function serializeElements(obj, eol, eol2) {
+		var output = '',
+			sep = '',
+			i = 0;
+		Object.keys(obj).forEach(function (k) {
+			output += sep;
+			if ((k|0) - k !== 0) {
+				output += (ID_REGEXP.exec(k) ? k : serializeString(k)) + (pretty ? ' : ' : ':');
+			} else for (; k - i > 0; i++) {
+				output += serializeUndefined() +','+ eol2;
 			}
-		}
-		output += eol +']';
-		var keys = Object.keys(obj).filter(isNaN);
-		if (keys.length > 0) {
-			var props = {};
-			keys.forEach(function (k) {
-				props[k] = obj[k];
-			});
-			output = 'Array('+ output +','+ serializeObject(props, eol2) +')';
-		}
+			output += serializeValue(obj[k], eol2);
+			sep = ','+ eol2;
+			i++;
+		});
 		return output;
 	}
 	
 	return serializeValue(obj, pretty ? '\n' : '');
-}
-
-/** The function `serializeAsType` allows to add a reference to a constructor to the serialization.
-*/
-function serializeAsType(constructor) {
-	return new type(constructor);
 }
 
 /** ## Materialization #############################################################################
@@ -506,12 +497,12 @@ function materialize(source, modifiers) {
 			return '';
 		});
 		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
-			(offset - lineStart + 1) +" (offset "+ (offset + 1) +")!");
+			(offset - lineStart) +" (offset "+ (offset + 1) +")!\n\t"+ source);
 	}
 
 	function shift(expected) {
 		if (token !== expected) {
-			error();
+			error("Parse error. Expected <"+ expected +"> but got <"+ (text || token) +">");
 		}
 		nextToken();
 	}
@@ -545,53 +536,79 @@ function materialize(source, modifiers) {
 
 	function parseArray(array) {
 		if (token !== ']') {
-			array.push(parseValue());
-			while (token === ',') {
-				nextToken();
-				array.push(parseValue());
-			}
-			shift(']');
-		} else {
-			nextToken();
+			parseElements(array);
 		}
+		shift(']');
 		return array;
 	}
 
 	function parseObject(obj) {
 		if (token !== '}') {
-			parseMember(obj);
-			while (token === ',') {
-				nextToken();
-				parseMember(obj);
-			}
-			shift('}');
-		} else {
-			nextToken();
+			parseElements(obj);
 		}
+		shift('}');
 		return obj;
 	}
 
-	function parseKey() {
-		var t = text;
-		switch (token) {
-			case 'i': 
+	function parseElements(obj) {
+		var i = 0,
+			t; 
+		while (true) {
+			t = text;
+			switch (token) {
+				case 'i':
+					if (!CONSTANTS.hasOwnProperty(t)) {
+						switch (nextToken()) {
+							case ':':
+								nextToken();
+								if (t === '__proto__') {
+									_setProto(obj, parseValue()); 
+								} else {
+									obj[t] = parseValue();
+								}
+								break;
+							case '(':
+								nextToken();
+								obj[i++] = parseConstruction(t, null);
+								break;
+							default:
+								error();
+						}
+					} else {
+						obj[i++] = CONSTANTS[t];
+						nextToken();
+					}
+					break;
+				case 's':
+					if (nextToken() === ':') {
+						nextToken();
+						if (t === '__proto__') {
+							_setProto(obj, parseValue()); 
+						} else {
+							obj[eval(t)] = parseValue();
+						}
+					} else {
+						obj[i++] = eval(t);
+					}
+					break;
+				case 'n':
+					obj[i++] = eval(t);
+					nextToken();
+					break;
+				case 'b': 
+					obj[i++] = parseBind();
+					break;
+				case '[': case '{':
+					obj[i++] = parseValue();
+					break;
+				default:
+					error();
+			}
+			if (token === ',') {
 				nextToken();
-				return t;
-			case 's':
-				nextToken();
-				return eval(t);
-			default: 
-				error();
-		}
-	}
-
-	function parseMember(obj) {
-		var k = parseKey();
-		shift(':');
-		if (k === '__proto__') {
-			_setProto(obj, parseValue());
-		} else {
-			obj[k] = parseValue();
+			} else {
+				break;
+			}
 		}
 		return obj;
 	}
@@ -619,23 +636,24 @@ function materialize(source, modifiers) {
 				default:
 					return bindings[id] = parseValue();
 			}
-		} else {
+		} else if (bindings.hasOwnProperty(id)) {
 			return bindings[id];
+		} else {
+			var rec = sermat.record(id.substr(1));
+			if (rec) {
+				return rec.type;
+			} else {
+				throw new ReferenceError('Sermat.mat: '+ id +' is not defined!');
+			}
 		}
 	}
 
 	function parseConstruction(cons, obj) {
 		var args = [];
 		if (token !== ')') {
-			args.push(parseValue());
-			while (token === ',') {
-				nextToken();
-				args.push(parseValue());
-			}
-			shift(')');
-		} else {
-			nextToken();
+			parseElements(args);
 		}
+		shift(')');
 		return sermat.construct(cons, obj, args);
 	}
 	
@@ -665,6 +683,22 @@ function serializeAsProperties(obj, properties, ownProperties) {
 		}
 	}
 	return [result];
+}
+
+/** `serializeWithConstructor` serializes the `obj` object with a list of properties inferred from
+the `constructor`'s formal argument list.
+*/
+function serializeWithConstructor(constructor, obj) {
+	var str = constructor +'',
+		comps = /^function\s*[\w$]*\s*\(([^)]*)\)\s*\{/.exec(str)
+		|| /^\(([^)]*)\)\s*=>/.exec(str);
+	if (comps && comps[1]) {
+		return comps[1].split(/\s*,\s*/).map(function (k) {
+			return obj[k];
+		});
+	} else {
+		throw new TypeError("Cannot infer a serialization from constructor ("+ constructor +")!");
+	}
 }
 
 /** `materializeWithConstructor` is a generic way of creating a new instance of the given type
@@ -741,45 +775,52 @@ var CONSTRUCTIONS = {};
 */
 	[Boolean,
 		function serialize_Boolean(obj) {
-			var v = !!(obj.valueOf());
-			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
+			return _assign([obj.valueOf()], obj);
 		},
 		function materialize_Boolean(obj, args) {
-			return args && _assign(new Boolean(args[0]), args[1]);
+			return args && _assign(new Boolean(args.shift()), args);
 		}
 	],
 	[Number,
 		function serialize_Number(obj) {
-			var v = +(obj.valueOf())
-			return Object.keys(obj).length > 0 ? [v, _assign({}, obj)] : [v];
+			return _assign([obj.valueOf()], obj);
 		},
 		function materialize_Number(obj, args) {
-			return args && _assign(new Number(args[0]), args[1]);
+			return args && _assign(new Number(args.shift()), args);
 		}
 	],
 	[String,
 		function serialize_String(obj) {
-			var v = ''+ obj.valueOf();
-			return Object.keys(obj).length > obj.length ? [v, _assign({}, obj)] : [v];
+			var r = [''+ obj.valueOf()],
+				len = obj.length;
+			Object.keys(obj).forEach(function (k) {
+				if ((k|0) - k !== 0) {
+					r[k] = obj[k];	
+				} else if (+k < 0 || +k >= obj.length) {
+					throw new TypeError('Sermat.ser: Cannot serialize String instances with'
+						+' integer properties (like <'+ k +'>)!');
+				}
+			});
+			return r;
 		},
 		function materialize_String(obj, args) {
-			return args && _assign(new String(args[0]), args[1]);
+			return args && _assign(new String(args.shift()), args);
 		}
 	],
 	[Object,
-		function serialize_Object(value) { // Should never be called.
-			return [value];
+		function serialize_Object(value) {
+			throw new TypeError("Sermat.ser: Object literals should not be serialized by a construction!"); 
 		},
 		function materialize_Object(obj, args) {
 			return args && Object.apply(null, args);
 		}
 	],
 	[Array,
-		function serialize_Array(value) { // Should never be called.
-			return Object.keys(value).length > 0 ? [value, _assign({}, value)] : [value]; 
+		function serialize_Array(value) {
+			throw new TypeError("Sermat.ser: Arrays should not be serialized by a construction!"); 
 		},
 		function materialize_Array(obj, args) {
-			return args && _assign(new Array(args[0]), args[1]);
+			return args;
 		}
 	],
 
@@ -858,7 +899,9 @@ var CONSTRUCTIONS = {};
 	[ReferenceError, serialize_Error, materializer_Error(ReferenceError)],
 	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
 	[TypeError, serialize_Error, materializer_Error(TypeError)],
-	[URIError, serialize_Error, materializer_Error(URIError)]
+	[URIError, serialize_Error, materializer_Error(URIError)],
+/**TODO Register $new & $extend
+*/
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -886,36 +929,11 @@ function materializer_Error(type) {
 	};
 }
 
-/** The pseudoconstruction `type` is used to serialize references to constructor functions of 
-registered types. For example, `type("Date")` materializes to the `Date` function.
-*/
-function type(f) {
-	this.typeConstructor = f;
+function $new() {
+	var args = arguments,
+		cons = args.shift();
+	return new (Function.prototype.bind.apply(cons, args))();	
 }
-
-member(CONSTRUCTIONS, 'type', type.__SERMAT__ = Object.freeze({ //FIXME
-	identifier: 'type',
-	type: type,
-	serializer: function serialize_type(value) {
-		var rec = this.record(value.typeConstructor);
-		if (!rec) {
-			throw new TypeError("Unknown type \""+ identifier(value.typeConstructor) +"\"!");
-		} else {
-			return [rec.identifier];
-		}
-	},
-	materializer: function materialize_type(obj, args) {
-		if (!args) {
-			return null;
-		} else if (checkSignature('type', /^,string$/, obj, args)) {
-			var rec = this.record(args[0]);
-			if (rec) {
-				return rec.type;
-			}
-		}
-		throw new TypeError("Cannot materialize construction for type("+ args +")!");
-	}
-}), 1);
 
 /** ## Wrap-up #####################################################################################
 
@@ -939,7 +957,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp type'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
 }
 
 var __members__ = {
@@ -956,7 +974,6 @@ var __members__ = {
 	
 	serialize: serialize, ser: serialize,
 	serializeAsProperties: serializeAsProperties,
-	serializeAsType: serializeAsType,
 	signature: signature, checkSignature: checkSignature,
 	
 	materialize: materialize, mat: materialize,
