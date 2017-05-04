@@ -19,7 +19,8 @@ constructor function is used, but this can be overriden by setting a `__SERMAT__
 function.
 */
 var FUNCTION_ID_RE = /^\s*function\s+([\w\$]+)/,
-	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[\.-][a-zA-Z0-9_]+)*$/;
+	ID_REGEXP = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[\.-][a-zA-Z0-9_]+)*$/,
+	INVALID_ID_RE = /^(true|false|null|undefined|NaN|Infinity|\$[\w\$]*)$/;
 function identifier(type, must) {
 	var id = (type.__SERMAT__ && type.__SERMAT__.identifier)
 		|| type.name
@@ -55,24 +56,19 @@ function register(registry, spec) {
 	spec = {
 		type: spec.type,
 		identifier: (spec.identifier || identifier(spec.type, true)).trim(),
-		serializer: spec.serializer,
+		serializer: spec.serializer || serializeWithConstructor.bind(this, spec.type),
 		materializer: spec.materializer || materializeWithConstructor.bind(this, spec.type),
 		global: !!spec.global,
 		include: spec.include
 	};
 	var id = spec.identifier;
-	['true', 'false','null','NaN','Infinity',''].forEach(function (invalidId) {
-		if (id === invalidId) {
-			throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
-		}
-	});
-	if (registry.hasOwnProperty(id)) {
+	if (INVALID_ID_RE.test(id)) {
+		throw new Error("Sermat.register: Invalid identifier '"+ id +"'!");
+	} else if (registry.hasOwnProperty(id)) {
 		throw new Error("Sermat.register: Construction '"+ id +"' is already registered!");
-	}
-	if (typeof spec.serializer !== 'function') {
+	} else if (typeof spec.serializer !== 'function') {
 		throw new Error("Sermat.register: Serializer for '"+ id +"' is not a function!");
-	}
-	if (typeof spec.materializer !== 'function') {
+	} else if (typeof spec.materializer !== 'function') {
 		throw new Error("Sermat.register: Materializer for '"+ id +"' is not a function!");
 	}
 	Object.freeze(spec);

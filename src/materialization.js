@@ -76,12 +76,12 @@ function materialize(source, modifiers) {
 			return '';
 		});
 		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
-			(offset - lineStart + 1) +" (offset "+ (offset + 1) +")!");
+			(offset - lineStart) +" (offset "+ (offset + 1) +")!\n\t"+ source);
 	}
 
 	function shift(expected) {
 		if (token !== expected) {
-			error();
+			error("Parse error. Expected <"+ expected +"> but got <"+ (text || token) +">");
 		}
 		nextToken();
 	}
@@ -115,53 +115,79 @@ function materialize(source, modifiers) {
 
 	function parseArray(array) {
 		if (token !== ']') {
-			array.push(parseValue());
-			while (token === ',') {
-				nextToken();
-				array.push(parseValue());
-			}
-			shift(']');
-		} else {
-			nextToken();
+			parseElements(array);
 		}
+		shift(']');
 		return array;
 	}
 
 	function parseObject(obj) {
 		if (token !== '}') {
-			parseMember(obj);
-			while (token === ',') {
-				nextToken();
-				parseMember(obj);
-			}
-			shift('}');
-		} else {
-			nextToken();
+			parseElements(obj);
 		}
+		shift('}');
 		return obj;
 	}
 
-	function parseKey() {
-		var t = text;
-		switch (token) {
-			case 'i': 
+	function parseElements(obj) {
+		var i = 0,
+			t; 
+		while (true) {
+			t = text;
+			switch (token) {
+				case 'i':
+					if (!CONSTANTS.hasOwnProperty(t)) {
+						switch (nextToken()) {
+							case ':':
+								nextToken();
+								if (t === '__proto__') {
+									_setProto(obj, parseValue()); 
+								} else {
+									obj[t] = parseValue();
+								}
+								break;
+							case '(':
+								nextToken();
+								obj[i++] = parseConstruction(t, null);
+								break;
+							default:
+								error();
+						}
+					} else {
+						obj[i++] = CONSTANTS[t];
+						nextToken();
+					}
+					break;
+				case 's':
+					if (nextToken() === ':') {
+						nextToken();
+						if (t === '__proto__') {
+							_setProto(obj, parseValue()); 
+						} else {
+							obj[eval(t)] = parseValue();
+						}
+					} else {
+						obj[i++] = eval(t);
+					}
+					break;
+				case 'n':
+					obj[i++] = eval(t);
+					nextToken();
+					break;
+				case 'b': 
+					obj[i++] = parseBind();
+					break;
+				case '[': case '{':
+					obj[i++] = parseValue();
+					break;
+				default:
+					error();
+			}
+			if (token === ',') {
 				nextToken();
-				return t;
-			case 's':
-				nextToken();
-				return eval(t);
-			default: 
-				error();
-		}
-	}
-
-	function parseMember(obj) {
-		var k = parseKey();
-		shift(':');
-		if (k === '__proto__') {
-			_setProto(obj, parseValue());
-		} else {
-			obj[k] = parseValue();
+			} else {
+				break;
+			}
 		}
 		return obj;
 	}
@@ -189,23 +215,24 @@ function materialize(source, modifiers) {
 				default:
 					return bindings[id] = parseValue();
 			}
-		} else {
+		} else if (bindings.hasOwnProperty(id)) {
 			return bindings[id];
+		} else {
+			var rec = sermat.record(id.substr(1));
+			if (rec) {
+				return rec.type;
+			} else {
+				throw new ReferenceError('Sermat.mat: '+ id +' is not defined!');
+			}
 		}
 	}
 
 	function parseConstruction(cons, obj) {
 		var args = [];
 		if (token !== ')') {
-			args.push(parseValue());
-			while (token === ',') {
-				nextToken();
-				args.push(parseValue());
-			}
-			shift(')');
-		} else {
-			nextToken();
+			parseElements(args);
 		}
+		shift(')');
 		return sermat.construct(cons, obj, args);
 	}
 	

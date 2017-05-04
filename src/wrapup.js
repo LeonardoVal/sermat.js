@@ -20,7 +20,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp type'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
 }
 
 var __members__ = {
@@ -37,7 +37,6 @@ var __members__ = {
 	
 	serialize: serialize, ser: serialize,
 	serializeAsProperties: serializeAsProperties,
-	serializeAsType: serializeAsType,
 	signature: signature, checkSignature: checkSignature,
 	
 	materialize: materialize, mat: materialize,
