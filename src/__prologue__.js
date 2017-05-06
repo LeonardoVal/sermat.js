@@ -30,6 +30,8 @@ function __init__() { "use strict";
 				objTo[k] = objFrom[k];
 			});
 			return r;
-		};
+		},
+		_isArray = Array.isArray //TODO Polyfill?
+	;
 /** See `__epilogue__.js`.
 */
