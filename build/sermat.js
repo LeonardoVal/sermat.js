@@ -30,7 +30,9 @@ function __init__() { "use strict";
 				objTo[k] = objFrom[k];
 			});
 			return r;
-		};
+		},
+		_isArray = Array.isArray //TODO Polyfill?
+	;
 /** See `__epilogue__.js`.
 */
 
@@ -255,7 +257,6 @@ function serialize(obj, modifiers) {
 		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
 		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
 		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
-		
 		visited = mode === REPEAT_MODE ? null : [],
 		parents = [],
 		sermat = this;
@@ -338,7 +339,7 @@ function serialize(obj, modifiers) {
 		}
 		parents.push(obj);
 		var eol2 = eol && eol +'\t';
-		if (Array.isArray(obj)) { // Arrays.
+		if (_isArray(obj)) { // Arrays.
 			output += serializeArray(obj, eol, eol2);
 		} else {
 			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
@@ -374,9 +375,12 @@ function serialize(obj, modifiers) {
 				}
 				var args = record.serializer.call(sermat, obj),
 					id = record.identifier;
-				len = args.length
-				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
-					+ serializeElements(args, eol, eol2) + eol +')';
+				if (Array.isArray(args)) {
+					output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
+						+ serializeElements(args, eol, eol2) + eol +')';
+				} else {
+					output += serializeObject(args, eol);
+				}
 			}
 		}
 		parents.pop();
@@ -489,7 +493,7 @@ function materialize(source, modifiers) {
 			return '';
 		});
 		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
-			(offset - lineStart) +" (offset "+ (offset + 1) +")!\n\t"+ source);
+			(offset - lineStart) +" (offset "+ (offset + 1) +")!");
 	}
 
 	function shift(expected) {
@@ -624,7 +628,7 @@ function materialize(source, modifiers) {
 					var cons = text;
 					nextToken();
 					shift('(');
-					return parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
+					return bindings[id] = parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
 				default:
 					return bindings[id] = parseValue();
 			}
@@ -892,8 +896,6 @@ var CONSTRUCTIONS = {};
 	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
 	[TypeError, serialize_Error, materializer_Error(TypeError)],
 	[URIError, serialize_Error, materializer_Error(URIError)],
-/**TODO Register $new & $extend
-*/
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -921,11 +923,45 @@ function materializer_Error(type) {
 	};
 }
 
-function $new() {
-	var args = arguments,
-		cons = args.shift();
-	return new (Function.prototype.bind.apply(cons, args))();	
-}
+/**
+*/
+member(CONSTRUCTIONS, 'new', Object.freeze({
+	identifier: 'new',
+	type: function $new() {
+		this.args = Array.prototype.slice.call(arguments);
+		this.cons = this.args.shift();
+	}, 
+	serializer: function serializer_new(obj) {
+		return [obj.cons].concat(obj.args);
+	},
+	materializer: function materializer_new(obj, args) {
+		return args && new (Function.prototype.bind.apply(args[0], args))();
+	}
+}));
+
+member(CONSTRUCTIONS, 'class', Object.freeze({
+	identifier: 'class',
+	type: function $class(cons, props) {
+		this.cons = cons;
+		this.props = props;
+	},
+	//FIXME serializer: <default serializer>,
+	materializer: function materializer_class(obj, args) {
+		if (!args) {
+			return null;
+		} else {
+			var type = args[0],
+				subType = function () {
+					type.apply(this, arguments);
+				};
+			_setProto(subType, type);
+			subType.prototype = Object.create(type.prototype);
+			subType.prototype.constructor = subType;
+			_assign(subType.prototype, args[1]);
+			return subType;
+		}
+	}
+}));
 
 /** ## Wrap-up #####################################################################################
 
@@ -949,7 +985,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp new class'.split(' '));
 }
 
 var __members__ = {
