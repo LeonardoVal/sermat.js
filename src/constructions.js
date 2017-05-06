@@ -172,8 +172,6 @@ var CONSTRUCTIONS = {};
 	[SyntaxError, serialize_Error, materializer_Error(SyntaxError)],
 	[TypeError, serialize_Error, materializer_Error(TypeError)],
 	[URIError, serialize_Error, materializer_Error(URIError)],
-/**TODO Register $new & $extend
-*/
 ].forEach(function (rec) {
 	var id = identifier(rec[0], true);
 	member(CONSTRUCTIONS, id, Object.freeze({
@@ -201,8 +199,42 @@ function materializer_Error(type) {
 	};
 }
 
-function $new() {
-	var args = arguments,
-		cons = args.shift();
-	return new (Function.prototype.bind.apply(cons, args))();	
-}
+/**
+*/
+member(CONSTRUCTIONS, 'new', Object.freeze({
+	identifier: 'new',
+	type: function $new() {
+		this.args = Array.prototype.slice.call(arguments);
+		this.cons = this.args.shift();
+	}, 
+	serializer: function serializer_new(obj) {
+		return [obj.cons].concat(obj.args);
+	},
+	materializer: function materializer_new(obj, args) {
+		return args && new (Function.prototype.bind.apply(args[0], args))();
+	}
+}));
+
+member(CONSTRUCTIONS, 'class', Object.freeze({
+	identifier: 'class',
+	type: function $class(cons, props) {
+		this.cons = cons;
+		this.props = props;
+	},
+	//FIXME serializer: <default serializer>,
+	materializer: function materializer_class(obj, args) {
+		if (!args) {
+			return null;
+		} else {
+			var type = args[0],
+				subType = function () {
+					type.apply(this, arguments);
+				};
+			_setProto(subType, type);
+			subType.prototype = Object.create(type.prototype);
+			subType.prototype.constructor = subType;
+			_assign(subType.prototype, args[1]);
+			return subType;
+		}
+	}
+}));
