@@ -53,7 +53,6 @@ function serialize(obj, modifiers) {
 		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
 		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
 		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
-		
 		visited = mode === REPEAT_MODE ? null : [],
 		parents = [],
 		sermat = this;
@@ -136,7 +135,7 @@ function serialize(obj, modifiers) {
 		}
 		parents.push(obj);
 		var eol2 = eol && eol +'\t';
-		if (Array.isArray(obj)) { // Arrays.
+		if (_isArray(obj)) { // Arrays.
 			output += serializeArray(obj, eol, eol2);
 		} else {
 			/** An object literal is serialized as a sequence of key-value pairs separated by commas 
@@ -172,9 +171,12 @@ function serialize(obj, modifiers) {
 				}
 				var args = record.serializer.call(sermat, obj),
 					id = record.identifier;
-				len = args.length
-				output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
-					+ serializeElements(args, eol, eol2) + eol +')';
+				if (Array.isArray(args)) {
+					output += (ID_REGEXP.exec(id) ? id : serializeString(id)) +'('+ eol2
+						+ serializeElements(args, eol, eol2) + eol +')';
+				} else {
+					output += serializeObject(args, eol);
+				}
 			}
 		}
 		parents.pop();
