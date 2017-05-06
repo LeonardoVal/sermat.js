@@ -76,7 +76,7 @@ function materialize(source, modifiers) {
 			return '';
 		});
 		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
-			(offset - lineStart) +" (offset "+ (offset + 1) +")!\n\t"+ source);
+			(offset - lineStart) +" (offset "+ (offset + 1) +")!");
 	}
 
 	function shift(expected) {
@@ -211,7 +211,7 @@ function materialize(source, modifiers) {
 					var cons = text;
 					nextToken();
 					shift('(');
-					return parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
+					return bindings[id] = parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
 				default:
 					return bindings[id] = parseValue();
 			}
