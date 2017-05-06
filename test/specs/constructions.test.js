@@ -1,5 +1,4 @@
 ﻿describe("Sermat constructions", function () { "use strict";
-
 	it("for Date.", function () { /////////////////////////////////////////////////////////////////
 		[new Date(), 
 		 new Date(Date.UTC(2000, 1)),
@@ -35,11 +34,12 @@
 				return [value.x, value.y];
 			}
 		}
-		Sermat.include(Point2D);
+		var sermat = new Sermat();
+		sermat.include(Point2D);
 		
 		[new Point2D(3, 77), new Point2D(2.95, Infinity), new Point2D(52)
 		].forEach(function (p1) {
-			var p2 = Sermat.mat(Sermat.ser(p1)); 
+			var p2 = sermat.sermat(p1); 
 			expect(p2.constructor).toBe(Point2D);
 			expect(p2 instanceof Point2D).toBe(true);
 			expect(p2.x +'').toBe(p1.x +''); // String conversion is used so that comparing NaNs works.
@@ -82,12 +82,13 @@
 				return value.refs;
 			}
 		};
-		Sermat.include(Ref);
+		var sermat = new Sermat();
+		sermat.include(Ref);
 		
 		var r1 = new Ref(), r2 = new Ref(r1, r1), r3;
-		expect(Sermat.ser.bind(Sermat, r2)).toThrow();
+		expect(sermat.ser.bind(sermat, r2)).toThrow();
 		[Sermat.REPEAT_MODE, Sermat.BINDING_MODE, Sermat.CIRCULAR_MODE].forEach(function (mode) {
-			r3 = Sermat.mat(Sermat.ser(r2, { mode: mode }));
+			r3 = sermat.mat(sermat.ser(r2, { mode: mode }));
 			[r3, r3.refs[0], r3.refs[1]].forEach(function (r) {
 				expect(r instanceof Ref).toBe(true);
 			});
@@ -100,10 +101,10 @@
 		
 		r2 = new Ref(r1);
 		r2.refs.push(r2);
-		expect(Sermat.ser.bind(Sermat, r2)).toThrow();
-		expect(Sermat.ser.bind(Sermat, r2, { mode: Sermat.REPEAT_MODE })).toThrow();
-		expect(Sermat.ser.bind(Sermat, r2, { mode: Sermat.BINDING_MODE })).toThrow();
-		r3 = Sermat.mat(Sermat.ser(r2, { mode: Sermat.CIRCULAR_MODE }));
+		expect(sermat.ser.bind(sermat, r2)).toThrow();
+		expect(sermat.ser.bind(sermat, r2, { mode: Sermat.REPEAT_MODE })).toThrow();
+		expect(sermat.ser.bind(sermat, r2, { mode: Sermat.BINDING_MODE })).toThrow();
+		r3 = sermat.mat(sermat.ser(r2, { mode: Sermat.CIRCULAR_MODE }));
 		[r3, r3.refs[0], r3.refs[1]].forEach(function (r) {
 			expect(r instanceof Ref).toBe(true);
 		});
@@ -165,9 +166,10 @@
 			this.z = +z;
 		}
 		Point3D.__SERMAT__ = {};
-		var p1 = new Point3D(1,2,3);
-		expect(Sermat.ser(p1)).toBe('Point3D(1,2,3)');
-		var p2 = Sermat.sermat(p1);
+		var sermat = new Sermat(),
+			p1 = new Point3D(1,2,3);
+		expect(sermat.ser(p1)).toBe('Point3D(1,2,3)');
+		var p2 = sermat.sermat(p1);
 		expect(p2.x).toBe(1);
 		expect(p2.y).toBe(2);
 		expect(p2.z).toBe(3);
@@ -186,12 +188,46 @@
 			Type1.call(this, x);
 		}
 		Object.setPrototypeOf(Type2, Type1);
-
-		expect(Sermat.ser(new Type1(1))).toBe('Type1(1)');
-		expect(Sermat.ser(new Type2(1))).toBe('Type2(1)');
+		var sermat = new Sermat();
+		expect(sermat.ser(new Type1(1))).toBe('Type1(1)');
+		expect(sermat.ser(new Type2(1))).toBe('Type2(1)');
 		// This must fail because the subtype does not have an identifier.
-		expect(Sermat.ser.bind(Object.setPrototypeOf(function (x) {
+		expect(sermat.ser.bind(Object.setPrototypeOf(function (x) {
 			Type1.call(this, x);
 		}, Type1))).toThrow();
+	});
+	
+	it("with pseudo-constructions.", function () { /////////////////////////////////////////////////
+		function Point2D(x, y) {
+			this.x = +x;
+			this.y = +y;
+		}
+		Point2D.__SERMAT__ = {};
+		var sermat = new Sermat();
+		sermat.include(Point2D);
+		
+		var v1 = sermat.mat('new($Point2D, 3, 9)');
+		expect(typeof v1).toBe('object');
+		expect(v1.constructor).toBe(Point2D);
+		expect(v1 instanceof Point2D).toBe(true);
+		expect(v1.x).toBe(3);
+		expect(v1.y).toBe(9);
+		
+		var v2 = sermat.mat('new(class($Point2D, {z:3}), 7, 1)');
+		expect(typeof v2).toBe('object');
+		expect(v2 instanceof Point2D).toBe(true);
+		expect(v2.x).toBe(7);
+		expect(v2.y).toBe(1);
+		expect(v2.z).toBe(3);
+		expect(v2.hasOwnProperty('z')).toBe(false);
+		expect(Object.getPrototypeOf(v2)).not.toBe(Point2D.prototype);
+		expect(Object.getPrototypeOf(Object.getPrototypeOf(v2))).toBe(Point2D.prototype);
+		expect(Object.getPrototypeOf(v2.constructor)).toBe(Point2D);
+		
+		var v3 = sermat.mat('[new($t=class($Point2D, {z:3}), 7, 1), new($t, 8, 8)]');
+		expect(v3[0] instanceof Point2D).toBe(true);
+		expect(v3[1] instanceof Point2D).toBe(true);
+		expect(v3[0].constructor).toBe(v3[1].constructor);
+		expect(Object.getPrototypeOf(v3[0])).toBe(Object.getPrototypeOf(v3[1]));
 	});
 }); //// describe "Sermat".
