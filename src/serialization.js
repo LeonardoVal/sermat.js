@@ -94,7 +94,7 @@ function serialize(obj, modifiers) {
 	}
 	
 	function serializeFunction(f, eol) {
-		var rec = sermat.record(f);
+		var rec = sermat.identifier(f, false) ? sermat.record(f) : null;
 		if (rec) {
 			return '$'+ rec.identifier;
 		} else {

@@ -39,7 +39,8 @@ function checkSignature(id, regexp, obj, args) {
 /** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first 
 it includes some implementations for Javascript's base types.
 */
-var CONSTRUCTIONS = {};
+var CONSTRUCTIONS = {},
+	FUNCTION_RE = /^(function\s*[\w$]*\s*\((?:\s*[$\w]+\s*,?)*\)\s*\{[\0-\uFFFF]*\}|\((?:\s*[$\w]+\s*,?)*\)\s*=>\s*[\0-\uFFFF]*)$/;
 [
 /** All `Boolean`, `Number`, `String`, `Object` and `Array` instances are serialized with their 
 	specific syntax and never as constructions. These are added only for compatibility at 
@@ -105,13 +106,11 @@ var CONSTRUCTIONS = {};
 			if (!comps) {
 				raise('serialize_RegExp', "Cannot serialize RegExp "+ value +"!", { value: value });
 			}
-			return Object.keys(value).length > 0 ? [comps[1], comps[2], _assign({}, value)] 
-				: [comps[1], comps[2]];
+			return _assign([comps[1], comps[2]], value);
 		},
 		function materialize_RegExp(obj, args /* [regexp, flags] */) {
-			return args && checkSignature('RegExp', /^(,string){1,2}(,Object)?$/, obj, args)
-				&& _assign(new RegExp(args[0], typeof args[1] === 'string' ? args[1] : ''), 
-					typeof args[1] === 'object' ? args[1] : args[2]);
+			return args && checkSignature('RegExp', /^(,string){1,2}$/, obj, args)
+				&& _assign(new RegExp(args.shift(), args.shift()), args);
 		}
 	],
 
@@ -120,42 +119,43 @@ var CONSTRUCTIONS = {};
 */
 	[Date,
 		function serialize_Date(value) {
-			var r = [value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
+			return _assign([value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(), 
 				value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(), 
-				value.getUTCMilliseconds()];
-			if (Object.keys(value).length > 0) {
-				r.push(_assign({}, value));
-			}
-			return r;
+				value.getUTCMilliseconds()], value);
 		},
 		function materialize_Date(obj, args /*[ years, months, days, hours, minutes, seconds, milliseconds ] */) {
-			if (args && checkSignature('Date', /^(,number){1,7}(,Object)?$/, obj, args)) {
-				var props = typeof args[args.length-1] === 'object' ? args.pop() : null;
-				return _assign(new Date(Date.UTC(args[0] |0, +args[1] || 1, args[2] |0, args[3] |0, 
-					args[4] |0, args[5] |0, args[6] |0)), props);
+			if (args && checkSignature('Date', /^(,number){1,7}?$/, obj, args)) {
+				return _assign(new Date(Date.UTC(args.shift() |0, +args.shift() || 1, 
+					args.shift() |0, args.shift() |0, args.shift() |0, args.shift() |0, 
+					args.shift() |0)), args);
 			} else {
 				return null;
 			}
 		}
 	],
 
-/** + `Function` is not registered by default, but it is available. Functions are serialized as 
-	required by the `Function` constructor.
+/** + `Function` is not registered by default, but it is available. Functions are serialized with
+	their full source code, in order to support arrow functions and to include the function's name.
 */
-//FIXME Functions' names are not serialized.
-//FIXME Cannot serialize arrow functions.
 	[Function,
-		function serialize_Function(obj) {
-			var comps = /^function\s*[\w$]*\s*\(((?:\s*[$\w]+\s*,?)*)\)\s*\{([\0-\uFFFF]*)\}$/.exec(obj +'');
+		function serialize_Function(f) {
+			var source = f +'',
+				comps = FUNCTION_RE.test(source);
 			if (!comps) {
-				throw new TypeError("Could not serialize Function ("+ obj +")!");
+				throw new TypeError("Could not serialize function ("+ source +")!");
 			}
-			return Object.keys(obj).length > 0 ? [comps[1], comps[2], _assign({}, obj)] 
-				: [comps[1], comps[2]];
+			return _assign([source], f);
 		},
 		function materialize_Function(obj, args) {
-			return args && checkSignature('Function', /^(,string){2}(,Object)?$/, obj, args) 
-				&& _assign(new Function(args[0], args[1]), args[2]);
+			if (args && checkSignature('Function', /^,string$/, obj, args)) {
+				if (!FUNCTION_RE.test(args[0])) {
+					throw new ParseError('Invalid source for Function ('+ args[0] +')!');
+				} else {
+					return _assign(eval('('+ args.shift() +')'), args);
+				}
+			} else {
+				return null;
+			}
 		}
 	],
 	

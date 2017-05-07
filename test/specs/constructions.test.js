@@ -130,6 +130,12 @@
 		expect(f1(1)).toBe(f2(1));
 		expect(f1.length).toBe(f2.length);
 		expect(f1.name).toBe(f2.name);
+		
+		f1 = ((x) => x);
+		f2 = sermat.sermat(f1);
+		expect(typeof f2).toBe('function');
+		expect(f1(1)).toBe(f2(1));
+		expect(f1.length).toBe(f2.length);
 	});
 	
 	it("with objetified native types.", function () { //////////////////////////////////////////////
@@ -150,7 +156,13 @@
 		expect(Sermat.ser(Object.assign([1,2,3], {4.5:6.78}))).toBe('[1,2,3,"4.5":6.78]');
 		expect(Sermat.ser(Object.assign([1,2,3], {4:5}), { onUndefined: 4 })).toBe('[1,2,3,4,5]');
 		// Other objects
-		expect(Sermat.ser(Object.assign(/\w/i, {re:'w'}))).toBe('RegExp("\\\\w","i",re:"w")');
+		var re = Object.assign(/\w/i, {one:1});
+		expect(Sermat.ser(re)).toBe('RegExp("\\\\w","i",one:1)');
+		expect(Object.keys(Sermat.sermat(re)) +'').toBe('one');
+		var date = Object.assign(new Date(Date.UTC(1970,1,1,0,0,0,0)), {two:2});
+		expect(Sermat.ser(date)).toBe('Date(1970,1,1,0,0,0,0,two:2)');
+		expect(Object.keys(Sermat.sermat(date)) +'').toBe('two');
+		
 		
 		var sermat = new Sermat();
 		sermat.include('Function');
