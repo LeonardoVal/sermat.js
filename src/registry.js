@@ -105,8 +105,9 @@ function include(arg) {
 		case 'function': {
 			spec = this.record(arg);
 			if (!spec && arg.__SERMAT__) {
-				spec = Object.assign({}, arg.__SERMAT__);
-				if (!arg.hasOwnProperty('__SERMAT__')) { // Inherited __SERMAT__
+				spec = arg.__SERMAT__;
+				if (!arg.hasOwnProperty('__SERMAT__') && !spec.inheritable) { // Inherited __SERMAT__
+					spec = Object.assign({}, spec);
 					spec.identifier = this.identifier(arg, true);
 				}
 				spec.type = arg;
