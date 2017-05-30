@@ -108,6 +108,12 @@ module.exports = function(grunt) {
 			test_chrome: { browsers: ['Chrome'] },
 			test_firefox: { browsers: ['Firefox'] }
 		},
+		benchmark: { ///////////////////////////////////////////////////////////////////////////////
+			build: {
+				src: ['test/benchmarks/*.benchmark.js'],
+				//dest: 'tests/benchmarks/benchmarks.csv'
+			}
+		},
 		docker: { //////////////////////////////////////////////////////////////////////////////////
 			document: {
 				src: sourceFiles.concat(['README.md', 'docs/*.md']),
@@ -124,6 +130,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-concat');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-karma');
+	grunt.loadNpmTasks('grunt-benchmark');
 	grunt.loadNpmTasks('grunt-docker');
 	
 // Register tasks. /////////////////////////////////////////////////////////////////////////////////
@@ -133,8 +140,8 @@ module.exports = function(grunt) {
 		'concat:build_node', 'uglify:build_node',
 		'concat:build_umd', 'uglify:build_umd'
 	]); 
-	grunt.registerTask('test', ['compile', 'karma:test_firefox']);
-	grunt.registerTask('full-test', ['compile', 'karma:test_chrome', 'karma:test_firefox']);
-	grunt.registerTask('build', ['test', 'docker:document']);
+	grunt.registerTask('test', ['compile', 'karma:test_firefox', 'karma:test_chrome']);
+	grunt.registerTask('perf', ['compile', 'benchmark:build']);
+	grunt.registerTask('build', ['compile', 'karma:test_firefox', 'docker:document']);
 	grunt.registerTask('default', ['build']);
 };

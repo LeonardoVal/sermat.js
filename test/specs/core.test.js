@@ -53,7 +53,7 @@
 				expect(sermat.serialize(num)).toBe(num +'');
 				expect(sermat.materialize(num +'')).toBe(num);
 			};
-			['1e3', '2e-4', '33e2', '-7e-2',
+			['1e3', '2e-4', '33e2', '-7e-2', '123.45678e9',
 			 'Infinity', '+Infinity', '-Infinity'
 			].forEach(function (str) {
 				expect(sermat.materialize(str)).toBe(+str);
