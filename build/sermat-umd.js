@@ -458,8 +458,14 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 	TOKENS = 'nsib',
 	/** These are the constant values handled by the format.
 	*/
-	CONSTANTS = { undefined: void 0, true: true, false: false, null: null, 
-		NaN: NaN, Infinity: Infinity };
+	CONSTANTS = {
+		'undefined': void 0,
+		'true': true,
+		'false': false,
+		'null': null, 
+		'NaN': NaN,
+		'Infinity': Infinity
+	};
 	
 function materialize(source, modifiers) {
 	var input = source +'', 
@@ -515,9 +521,12 @@ function materialize(source, modifiers) {
 	function parseValue() {
 		var t = text;
 		switch (token) {
-			case 'n': case 's':
+			case 'n':
 				nextToken();
-				return eval(t);
+				return Number(t);
+			case 's':
+				nextToken();
+				return t.charAt(0) === '`' ? t.substr(1, t.length - 2).replace(/\\`/g, '`') : eval(t);
 			case '[':
 				nextToken();
 				return parseArray([]);
