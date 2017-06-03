@@ -1,4 +1,4 @@
-﻿describe("Performance", function () { "use strict";
+﻿describe("Random tests", function () { "use strict";
 
 // Timing //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -92,60 +92,30 @@
 // Tests ///////////////////////////////////////////////////////////////////////////////////////////
 	
 	it("with strings.", function () { //////////////////////////////////////////////////////////////
-		var STRING_TEST_CASES = [""];
-		for (var size = 1; size <= 0x2000; size *= 2) {
-			for (var i = 0; i < 30; i++) {
-				STRING_TEST_CASES.push(randomString(size, 0, 256));
+		var testCase, serialized, materialized,
+			size, i;
+		for (size = 1; size <= 0x2000; size *= 2) {
+			for (i = 0; i < 30; i++) {
+				testCase = randomString(size, 0, 256);
+				serialized = Sermat.ser(testCase);
+				materialized = Sermat.mat(serialized);
+				expect(materialized).toBe(testCase);
 			}
 		}
-
-		var time = testTime(STRING_TEST_CASES, Sermat.serialize, "Sermat.serialize"),
-			charCount = 0;
-		STRING_TEST_CASES = STRING_TEST_CASES.map(function (string) {
-			charCount += string.length;
-			return Sermat.serialize(string);
-		});
-		console.log("String literal serialization time: "+ Math.round(time / charCount * 1e6) / 1e3 +"e-6 secs/char.");
-		
-		time = testTime(STRING_TEST_CASES, Sermat.materialize, "Sermat.materialize");
-		console.log("String literal materialization time: "+ Math.round(time / charCount * 1e6) / 1e3 +"e-6 secs/char.");
 	});
 
 	it("with structured values.", function () { ////////////////////////////////////////////////////
-		var STRUCTURE_TEST_CASES = [];
-		for (var min = 0; min < 4; min++) {
-			for (var max = min; max < min + 4; max++) {
-				for (var i = 0; i < 50; i++) {
-					STRUCTURE_TEST_CASES.push(randomValue(min, max));
+		var testCase, serialized, materialized,
+			min, max, i;
+		for (min = 0; min < 4; min++) {
+			for (max = min; max < min + 4; max++) {
+				for (i = 0; i < 50; i++) {
+					testCase = randomValue(min, max);
+					serialized = Sermat.ser(testCase);
+					materialized = Sermat.mat(serialized);
+					expect(materialized).toEqual(testCase);
 				}
 			}
-		}	
-		
-		var timeSermat = testTime(STRUCTURE_TEST_CASES, Sermat.serialize, "Sermat.serialize"),
-			charCountSermat = 0,
-			serializedSermat = STRUCTURE_TEST_CASES.map(function (testCase) {
-				var text = Sermat.serialize(testCase);
-				charCountSermat += text.length;
-				return text;
-			}),
-			timeJSON = testTime(STRUCTURE_TEST_CASES, JSON.stringify, "JSON.stringify"),
-			charCountJSON = 0,
-			serializedJSON = STRUCTURE_TEST_CASES.map(function (testCase) {
-				var text = JSON.stringify(testCase);
-				charCountJSON += text.length;
-				return text;
-			})
-			;
-		console.log("Random structure serialization time: "+ Math.round(timeSermat / charCountSermat * 1e6) / 1e3 +"e-6 secs/char. "+
-			"Ratios with JSON.stringify: "+ (timeSermat / timeJSON +'').substr(0, 5) +" time ("+ timeSermat +"/"+ timeJSON +") and "+ 
-			(charCountSermat / charCountJSON +'').substr(0, 5) +" chars ("+ charCountSermat +"/"+ charCountJSON +").");
-			
-		timeSermat = testTime(serializedSermat, Sermat.materialize, "Sermat.materialize");
-		serializedSermat.forEach(function (serialized) {		
-			expect(Sermat.ser(Sermat.mat(serialized))).toBe(serialized);
-		});
-		timeJSON = testTime(serializedJSON, JSON.parse, "JSON.parse");
-		console.log("Random structure materialization time: "+ Math.round(timeSermat / charCountSermat * 1e6) / 1e3 +"e-6 secs/char. "+
-			"Time ratio with JSON.parse: "+ (timeSermat / timeJSON +'').substr(0, 5) +" ("+ timeSermat +"/"+ timeJSON +").");
+		}
 	});
-}); //// describe "Parser performance".
+}); //// describe "Random tests".
