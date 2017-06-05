@@ -732,6 +732,61 @@ function sermat(obj, modifiers) {
 	return this.mat(this.ser(obj, modifiers));
 }
 
+/** The `clone` function makes a deep copy of a value, taking advantage of Sermat's definitions. It
+is like `Sermat.sermat`, but without dealing with text.
+*/
+function clone(obj) {
+	var visited = [],
+		cloned = [],
+		sermat = this;
+	
+	function cloneObject(obj) {
+		visited.push(obj);
+		var isArray = Array.isArray(obj),
+			clonedObj;
+		if (isArray || obj.constructor === Object) {
+			//FIXME || !useConstructions || climbPrototypes && !objProto.hasOwnProperty('constructor')
+			clonedObj = isArray ? [] : {};
+			cloned.push(clonedObj);
+			for (var k in obj) {
+				clonedObj[k] = cloneValue(obj[k]);
+			}
+		} else { // Constructions.
+			var record = sermat.record(obj.constructor);
+					//FIXME || autoInclude && sermat.include(obj.constructor);
+			if (!record) {
+				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
+			}
+			clonedObj = record.materializer.call(sermat, null, null);
+			cloned.push(clonedObj);
+			record.materializer.call(sermat, clonedObj, record.serializer.call(sermat, obj));
+		}
+		return clonedObj;
+	}
+	
+	function cloneValue(value) {
+		switch (typeof value) {
+			case 'undefined':
+			case 'boolean':
+			case 'number':   
+			case 'function':
+				return value;
+			case 'string':
+				return ''+ value;
+			case 'object':
+				if (value === null) {
+					return null;
+				}
+				var i = visited.indexOf(value);
+				return i >= 0 ? cloned[i] : cloneObject(value);
+			default: 
+				throw new Error('Unsupported type '+ typeof value +'!');
+		}
+	}
+	
+	return cloneValue(obj);
+}
+
 /** ## Constructions for Javascript types ##########################################################
 
 One of Sermat's most important features is extensible handling of custom types. But the library 
@@ -1018,7 +1073,7 @@ var __members__ = {
 	construct: construct,
 	materializeWithConstructor: materializeWithConstructor,
 	
-	sermat: sermat
+	sermat: sermat, clone: clone
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];
