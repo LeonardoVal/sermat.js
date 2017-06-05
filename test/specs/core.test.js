@@ -219,4 +219,20 @@
 			expect(Sermat.clone(v)).toEqual(v);
 		});
 	});
+	
+	it(".hashCode()", function () { ////////////////////////////////////////////////////////////////
+		expect(Sermat.clone(NaN) +'').toBe('NaN');
+		[	true, false,
+			0, 1, 2, -1, 0.5, 1e3, 2e-4, 33e2, -7e-2, 123.45678e9, Infinity, -Infinity,
+			'', 'a', 'abcdef', '"', 'a"b', 
+			'\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+			[], [1], [1,2,3], 
+			null, {}, {x:1}, {x:1, y:2}, 
+			[[]], [[],[1],[1,2]], [{}], [{},{}], [{x:[1,2]},[{y:3}]],
+			{x:{y:2}}, {x:[],y:{}}, {x:{y:[1,2]},z:[{w:3},{w:4}]},
+			undefined
+		].forEach(function (v) {
+			expect(typeof Sermat.hashCode(v)).toBe('number');
+		});
+	});
 }); //// describe "Sermat".

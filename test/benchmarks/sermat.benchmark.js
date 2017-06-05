@@ -102,6 +102,20 @@ function testJSON_full(cases) {
 	}
 }
 
+function testSermat_clone(cases) {
+	var m;
+	for (var i = 0, len = cases.length; i < len; i++) {
+		Sermat.clone(cases[i]);
+	}
+}
+
+function testSermat_hashCode(cases) {
+	var m;
+	for (var i = 0, len = cases.length; i < len; i++) {
+		Sermat.hashCode(cases[i]);
+	}
+}
+
 var NUMBER_TEST_CASES = (function () {
 		var cases = [NaN, Infinity, -Infinity, 0, -0];
 		for (var count = 1; count <= 1000; count++) {
@@ -152,6 +166,9 @@ module.exports = {
 		'JSON.parse(JSON.stringify(string))': function () { testJSON_full(STRING_TEST_CASES); },
 		'Sermat.mat(Sermat.ser(string))': function () { testSermat_full(STRING_TEST_CASES); },
 		'JSON.parse(JSON.stringify(value))': function () { testJSON_full(VALUE_TEST_CASES); },
-		'Sermat.mat(Sermat.ser(value))': function () { testSermat_full(VALUE_TEST_CASES); }
+		'Sermat.mat(Sermat.ser(value))': function () { testSermat_full(VALUE_TEST_CASES); },
+		// Utilities.
+		'Sermat.clone(value)': function () { testSermat_clone(VALUE_TEST_CASES); },
+		'Sermat.hashCode(value)': function () { testSermat_hashCode(VALUE_TEST_CASES); }
 	}
 };

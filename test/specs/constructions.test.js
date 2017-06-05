@@ -242,4 +242,37 @@
 		expect(v3[0].constructor).toBe(v3[1].constructor);
 		expect(Object.getPrototypeOf(v3[0])).toBe(Object.getPrototypeOf(v3[1]));
 	});
+	
+	it("with clone().", function () { //////////////////////////////////////////////////////////////
+		function Point2D(x, y) {
+			this.x = +x;
+			this.y = +y;
+		}
+		Point2D.__SERMAT__ = {};
+		var sermat = new Sermat();
+		sermat.include(Point2D);
+		var value = new Point2D(1, 22);
+		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+		value = new Point2D(0, 0);
+		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+		value = new Point2D(3, -3);
+		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+	});
+	
+	it("with hashCode().", function () { ///////////////////////////////////////////////////////////
+		function Point2D(x, y) {
+			this.x = +x;
+			this.y = +y;
+		}
+		Point2D.__SERMAT__ = {};
+		var sermat = new Sermat();
+		sermat.include(Point2D);
+		var value = new Point2D(1, 22),
+			hash = sermat.hashCode(value);
+		expect(hash |0).toBe(hash);
+		hash = sermat.hashCode(value = new Point2D(0, 0));
+		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+		hash = sermat.hashCode(value = new Point2D(3, -3));
+		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+	});
 }); //// describe "Sermat".
