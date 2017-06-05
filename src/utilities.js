@@ -63,25 +63,27 @@ function sermat(obj, modifiers) {
 /** The `clone` function makes a deep copy of a value, taking advantage of Sermat's definitions. It
 is like `Sermat.sermat`, but without dealing with text.
 */
-function clone(obj) {
-	var visited = [],
+function clone(obj, modifiers) {
+	var sermat = this,
+		visited = [],
 		cloned = [],
-		sermat = this;
+		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude);
 	
 	function cloneObject(obj) {
 		visited.push(obj);
 		var isArray = Array.isArray(obj),
 			clonedObj;
-		if (isArray || obj.constructor === Object) {
-			//FIXME || !useConstructions || climbPrototypes && !objProto.hasOwnProperty('constructor')
+		if (isArray || obj.constructor === Object || !useConstructions) {
+			//FIXME || climbPrototypes && !objProto.hasOwnProperty('constructor')
 			clonedObj = isArray ? [] : {};
 			cloned.push(clonedObj);
 			for (var k in obj) {
 				clonedObj[k] = cloneValue(obj[k]);
 			}
 		} else { // Constructions.
-			var record = sermat.record(obj.constructor);
-					//FIXME || autoInclude && sermat.include(obj.constructor);
+			var record = sermat.record(obj.constructor)
+				|| autoInclude && sermat.include(obj.constructor);
 			if (!record) {
 				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
 			}
