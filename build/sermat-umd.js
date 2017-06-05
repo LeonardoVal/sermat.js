@@ -743,25 +743,27 @@ function sermat(obj, modifiers) {
 /** The `clone` function makes a deep copy of a value, taking advantage of Sermat's definitions. It
 is like `Sermat.sermat`, but without dealing with text.
 */
-function clone(obj) {
-	var visited = [],
+function clone(obj, modifiers) {
+	var sermat = this,
+		visited = [],
 		cloned = [],
-		sermat = this;
+		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude);
 	
 	function cloneObject(obj) {
 		visited.push(obj);
 		var isArray = Array.isArray(obj),
 			clonedObj;
-		if (isArray || obj.constructor === Object) {
-			//FIXME || !useConstructions || climbPrototypes && !objProto.hasOwnProperty('constructor')
+		if (isArray || obj.constructor === Object || !useConstructions) {
+			//FIXME || climbPrototypes && !objProto.hasOwnProperty('constructor')
 			clonedObj = isArray ? [] : {};
 			cloned.push(clonedObj);
 			for (var k in obj) {
 				clonedObj[k] = cloneValue(obj[k]);
 			}
 		} else { // Constructions.
-			var record = sermat.record(obj.constructor);
-					//FIXME || autoInclude && sermat.include(obj.constructor);
+			var record = sermat.record(obj.constructor)
+				|| autoInclude && sermat.include(obj.constructor);
 			if (!record) {
 				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
 			}
@@ -777,10 +779,9 @@ function clone(obj) {
 			case 'undefined':
 			case 'boolean':
 			case 'number':   
+			case 'string':
 			case 'function':
 				return value;
-			case 'string':
-				return ''+ value;
 			case 'object':
 				if (value === null) {
 					return null;
@@ -793,6 +794,63 @@ function clone(obj) {
 	}
 	
 	return cloneValue(obj);
+}
+
+/** The `hashCode` function calculates an integer hash for the given value. It is mostly inspired by
+the same method in Java objects.
+*/
+function hashCode(value, modifiers) {
+	var sermat = this,
+		visited = [],
+		hashCodes = [],
+		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude);
+
+	function hashObject(obj) {
+		var hash = 1,
+			hashIndex = visited.push(obj);
+		hashCodes.push(0);
+		if (Array.isArray(obj) || obj.constructor === Object || !useConstructions) {
+			//FIXME  || climbPrototypes && !objProto.hasOwnProperty('constructor')
+			for (var k in obj) {
+				hash = (31 * hash + (hashValue(k) ^ hashValue(obj[k]))) |0;
+			}
+		} else { // Constructions.
+			var record = sermat.record(obj.constructor)
+				|| autoInclude && sermat.include(obj.constructor);
+			if (!record) {
+				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
+			}
+			//TODO args = record.serializer.call(sermat, obj);
+		}
+		hashCodes[hashIndex] = hash;
+		return hash;
+	}
+		
+	function hashValue(value) {
+		switch (typeof value) {
+			case 'undefined':
+			case 'boolean':   
+			case 'number': return value >>> 0;
+			case 'string':
+				var result = 5381;
+				for (var i = 0, len = value.length & 0x1F; i < len; i++) { 
+					result = result * 33 ^ value.charCodeAt(i);
+				}
+				return result >>> 0;
+			case 'function':
+			case 'object':
+				if (value === null) {
+					return 0;
+				}
+				var i = visited.indexOf(value);
+				return i >= 0 ? hashCodes[i] : hashObject(value);
+			default: 
+				throw new Error('Unsupported type '+ typeof value +'!');
+		}
+	}
+	
+	return hashValue(value);
 }
 
 /** ## Constructions for Javascript types ##########################################################
@@ -1081,7 +1139,7 @@ var __members__ = {
 	construct: construct,
 	materializeWithConstructor: materializeWithConstructor,
 	
-	sermat: sermat, clone: clone
+	sermat: sermat, clone: clone, hashCode: hashCode
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];
