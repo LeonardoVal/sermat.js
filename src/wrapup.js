@@ -43,7 +43,7 @@ var __members__ = {
 	construct: construct,
 	materializeWithConstructor: materializeWithConstructor,
 	
-	sermat: sermat
+	sermat: sermat, clone: clone
 };
 Object.keys(__members__).forEach(function (id) {
 	var m = __members__[id];

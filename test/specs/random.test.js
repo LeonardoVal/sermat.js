@@ -91,6 +91,23 @@
 	
 // Tests ///////////////////////////////////////////////////////////////////////////////////////////
 	
+	it("with number.", function () { ///////////////////////////////////////////////////////////////
+		var testCase, serialized, materialized,
+			i;
+		for (i = 0; i < 60; i++) {
+			testCase = i % 2 ? randomNumber() : randomInt();
+			serialized = Sermat.ser(testCase);
+			materialized = Sermat.mat(serialized);
+			if (isNaN(testCase)) {
+				expect(isNaN(materialized)).toBe(true);
+				expect(isNaN(Sermat.clone(testCase))).toBe(true);
+			} else {
+				expect(materialized).toBe(testCase);
+				expect(Sermat.clone(testCase)).toEqual(testCase);
+			}
+		}
+	});
+	
 	it("with strings.", function () { //////////////////////////////////////////////////////////////
 		var testCase, serialized, materialized,
 			size, i;
@@ -100,6 +117,7 @@
 				serialized = Sermat.ser(testCase);
 				materialized = Sermat.mat(serialized);
 				expect(materialized).toBe(testCase);
+				expect(Sermat.clone(testCase)).toEqual(testCase);
 			}
 		}
 	});
@@ -114,6 +132,7 @@
 					serialized = Sermat.ser(testCase);
 					materialized = Sermat.mat(serialized);
 					expect(materialized).toEqual(testCase);
+					expect(Sermat.clone(testCase)).toEqual(testCase);
 				}
 			}
 		}
