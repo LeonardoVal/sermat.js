@@ -2,7 +2,7 @@
 
 ## Issues
 
-+ Improve performance of `Sermat.materialize` with constants, i.e. `true` or `null`.
++ Improve performance of `Sermat.materialize`.
 
 ## Testing
 

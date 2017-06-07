@@ -142,6 +142,6 @@ module.exports = function(grunt) {
 	]); 
 	grunt.registerTask('test', ['compile', 'karma:test_firefox', 'karma:test_chrome']);
 	grunt.registerTask('build', ['compile', 'karma:test_firefox', 'docker:document']);
-	grunt.registerTask('perf', ['build', 'benchmark:build']);
+	grunt.registerTask('perf', ['compile', 'karma:test_firefox', 'benchmark:build']);
 	grunt.registerTask('default', ['build']);
 };

@@ -16,60 +16,74 @@ function construct(id, obj, args) {
 }
 
 var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+\/)*/,
-	RE_NUM = /[+-]?(?:Infinity|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
+	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
 	RE_STR = /\"(?:[^\\\"\n]|\\[^\n])*\"|`(?:[^\\\`]|\\.)*`/,
+	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
 	RE_ID = /[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*/,
 	RE_BIND = /\$[a-zA-Z0-9_]+(?:[.-]?[a-zA-Z0-9_]+)*/,
-	RE_SYMBOLS = /[\,[\]{:}(=)]/,
+	RE_SYMBOLS = /[[,\]{:}(=)]/,
 	RE_EOL = /\r\n?|\n/g,
 	LEXER = new RegExp('^'+ RE_IGNORABLES.source +'(?:'+
 		'('+ RE_NUM.source 
 		+')|('+ RE_STR.source
+		+')|('+ RE_CONS.source
 		+')|('+ RE_ID.source
 		+')|('+ RE_BIND.source
 		+')|('+ RE_SYMBOLS.source 
 		+')|$)'),
-	TOKENS = 'nsib',
-	/** These are the constant values handled by the format.
-	*/
-	CONSTANTS = {
-		'undefined': void 0,
-		'true': true,
-		'false': false,
-		'null': null, 
-		'NaN': NaN,
-		'Infinity': Infinity
+	TOKENS = 'nskib',
+	TOKENS_BY_FIRST_CHAR = { 
+		'+':0, '-':0, '0':0, '1':0, '2':0, '3':0, '4':0, '5':0, '6':0, '7':0, '8':0, '9':0,
+		'"':1, '`':1,
+		'$':4,
+		'[':5, ']':5, '(':5, ')':5, '{':5, '}':5, ',':5, ':':5, '=':5,
+		'':5 // End of Input //TODO Add whitespace ' ':5
 	};
 	
 function materialize(source, modifiers) {
-	var input = source +'', 
+	var input = source,
 		offset = 0,
 		token, text,
 		bindings = modifiers && modifiers.bindings || {},
 		sermat = this;
 
 	function nextToken() {
-		var tokens = LEXER.exec(input),
-			result, len, i;
-		text = '';
-		if (!tokens) {
-			error('Invalid character "'+ input.charAt(0) +'"');
-		} else {
+		var tokens, len, i, chr;
+		if (tokens = LEXER.exec(input)) {
+			//console.log(tokens);//LOG Uncomment for debugging.
 			len = tokens[0].length;
 			input = input.substr(len);
 			offset += len;
+			text = '';
 			for (i = 1, len = TOKENS.length; i <= len; i++) {
 				if (tokens[i]) {
-					token = TOKENS.charAt(i-1);
 					text = tokens[i];
-					break;
+					return token = TOKENS.charAt(i-1);
 				}
+			} 
+			if (!text) { 
+				return token = tokens[i] || '$'; 
 			}
-			if (!text) {
-				token = tokens[i] || '$';
-			}
-			return token;
 		}
+		/*if (tokens = LEXER.exec(input)) {
+			//console.log(tokens);//LOG Uncomment for debugging.
+			len = tokens[0].length;
+			input = input.substr(len);
+			offset += len;
+			text = tokens[1];
+			i = TOKENS_BY_FIRST_CHAR[text.charAt(0)];
+			if (!isNaN(i)) {
+				text = tokens[i+2] || '';
+				return token = TOKENS.charAt(i) || text || '$';
+			} else if (tokens[4]) { // Constants
+				text = tokens[4];
+				return token = TOKENS.charAt(2);
+			} else if (tokens[5]) { // Identifiers
+				text = tokens[5];
+				return token = TOKENS.charAt(3);
+			}
+		}*/
+		error('Invalid character "'+ input.charAt(0) +'"');
 	}
 	
 	function error(msg) {
@@ -97,7 +111,7 @@ function materialize(source, modifiers) {
 		switch (token) {
 			case 'n':
 				nextToken();
-				return Number(t);
+				return eval(t);
 			case 's':
 				nextToken();
 				return t.charAt(0) === '`' ? t.substr(1, t.length - 2).replace(/\\`/g, '`') : eval(t);
@@ -109,16 +123,15 @@ function materialize(source, modifiers) {
 				return parseObject({});
 			case 'b':
 				return parseBind();
+			case 'k':
+				nextToken();
+				return eval(t);
 			case 'i':
 				nextToken();
-				if (CONSTANTS.hasOwnProperty(t)) {
-					return CONSTANTS[t];
-				} else {
-					shift('(');
-					return parseConstruction(t, null);
-				}
+				shift('(');
+				return parseConstruction(t, null);
 			default:
-				error();
+				error("Expected value but got `"+ t +"` (token="+ token +")!");
 		}
 	}
 
@@ -144,27 +157,26 @@ function materialize(source, modifiers) {
 		while (true) {
 			t = text;
 			switch (token) {
+				case 'k':
+					obj[i++] = eval(t);
+					nextToken();
+					break;
 				case 'i':
-					if (!CONSTANTS.hasOwnProperty(t)) {
-						switch (nextToken()) {
-							case ':':
-								nextToken();
-								if (t === '__proto__') {
-									_setProto(obj, parseValue()); 
-								} else {
-									obj[t] = parseValue();
-								}
-								break;
-							case '(':
-								nextToken();
-								obj[i++] = parseConstruction(t, null);
-								break;
-							default:
-								error();
-						}
-					} else {
-						obj[i++] = CONSTANTS[t];
-						nextToken();
+					switch (nextToken()) {
+						case ':':
+							nextToken();
+							if (t === '__proto__') {
+								_setProto(obj, parseValue()); 
+							} else {
+								obj[t] = parseValue();
+							}
+							break;
+						case '(':
+							nextToken();
+							obj[i++] = parseConstruction(t, null);
+							break;
+						default:
+							error();
 					}
 					break;
 				case 's':
@@ -190,7 +202,7 @@ function materialize(source, modifiers) {
 					obj[i++] = parseValue();
 					break;
 				default:
-					error();
+					error("Expected element but got `"+ t +"` (token="+ token +", input='"+ input +"')!"); //FIXME
 			}
 			if (token === ',') {
 				nextToken();
