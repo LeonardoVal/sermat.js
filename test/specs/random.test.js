@@ -27,8 +27,8 @@
 	}
 	var random = linearCongruential(123456789);
 	
-	function randomInt(n) {
-		return Math.floor(random() * (+n));
+	function randomInt(n, negative) {
+		return Math.floor((negative ? random() * 2 - 1 : random()) * (+n));
 	}
 
 	function randomNumber() {
@@ -54,29 +54,43 @@
 		return string;
 	}
 	
-	function randomObject(min, max) {
-		var obj = {};
+	function randomObject(min, max, loopChance) {
+		var obj = {}, values = [];
 		for (var i = 0, len = randomInt(10 * min); i < len; i++) {
-			obj[randomIdentifier(randomInt(15))] = randomValue(min, max);
+			if (i && random() <= loopChance) {
+				obj[randomIdentifier(randomInt(15))] = values[randomInt(values.length)];
+			} else {
+				values.push(obj[randomIdentifier(randomInt(15))] = randomValue(min, max));
+			}
 		}
 		return obj;
 	}
 	
-	function randomArray(min, max) {
+	function randomArray(min, max, loopChance) {
 		var array = [];
 		for (var i = 0, len = randomInt(15 * min) ; i < len; i++) {
-			array.push(randomValue(min, max))
+			array.push(i && random() <= loopChance ? array[randomInt(i)] :
+				randomValue(min, max, loopChance));
 		}
 		return array;
 	}
 	
-	function randomValue(min, max) {
+	function randomConstruction(min, max, loopChance) {
+		switch (randomInt(4)) {
+			case 0: return new Date(randomInt(Math.pow(2, 45), true));
+			case 1: return new Number(random() * Math.pow(2, 20));
+			case 2: return new String(randomString(10 * Math.max(1, max), 32, 127));
+			case 3: return new Error(randomIdentifier(randomInt(15)));
+		}		
+	}
+	
+	function randomValue(min, max, loopChance) {
 		switch (randomInt(max <= 0 ? 4 : min > 0 ? 2 : 6) + (min > 0 ? 4 : 0)) {
 			case 1: return random() < 0.5; // boolean
 			case 2: return randomNumber(); // number
 			case 3: return randomString(10 * Math.max(1, max), 32, 127);
-			case 4: return randomObject(min - 1, max - 1);
-			case 5: return randomArray(min - 1, max - 1);
+			case 4: return randomObject(min - 1, max - 1, loopChance);
+			case 5: return randomArray(min - 1, max - 1, loopChance);
 			default: return null;
 		}
 	}
@@ -91,50 +105,89 @@
 	
 // Tests ///////////////////////////////////////////////////////////////////////////////////////////
 	
+	function checkUtilities(testCase) {
+		var clone = Sermat.clone(testCase);
+		expect(clone).toEqual(testCase); // Clones must be equal.
+		var hashCode = Sermat.hashCode(testCase);
+		expect(Math.floor(hashCode)).toBe(hashCode); // hashCode must be an integer.
+		expect(Sermat.hashCode(clone)).toBe(hashCode); // hashCodes for clones must be equal.
+	}
+	
 	it("with number.", function () { ///////////////////////////////////////////////////////////////
 		var testCase, serialized, materialized,
-			i;
+			i, clone, hashCode;
 		for (i = 0; i < 60; i++) {
 			testCase = i % 2 ? randomNumber() : randomInt();
 			serialized = Sermat.ser(testCase);
 			materialized = Sermat.mat(serialized);
-			if (isNaN(testCase)) {
+			if (isNaN(testCase)) { // NaN is ... complicated.
 				expect(isNaN(materialized)).toBe(true);
 				expect(isNaN(Sermat.clone(testCase))).toBe(true);
 			} else {
 				expect(materialized).toBe(testCase);
-				expect(Sermat.clone(testCase)).toEqual(testCase);
+				checkUtilities(testCase);
 			}
 		}
 	});
 	
 	it("with strings.", function () { //////////////////////////////////////////////////////////////
 		var testCase, serialized, materialized,
-			size, i;
+			size, i, clone, hashCode;
 		for (size = 1; size <= 0x2000; size *= 2) {
 			for (i = 0; i < 30; i++) {
 				testCase = randomString(size, 0, 256);
 				serialized = Sermat.ser(testCase);
 				materialized = Sermat.mat(serialized);
 				expect(materialized).toBe(testCase);
-				expect(Sermat.clone(testCase)).toEqual(testCase);
+				checkUtilities(testCase);
 			}
 		}
 	});
 
-	it("with structured values.", function () { ////////////////////////////////////////////////////
+	it("with tree-like structures.", function () { /////////////////////////////////////////////////
 		var testCase, serialized, materialized,
-			min, max, i;
+			min, max, i, clone, hashCode;
 		for (min = 0; min < 4; min++) {
 			for (max = min; max < min + 4; max++) {
-				for (i = 0; i < 50; i++) {
-					testCase = randomValue(min, max);
+				for (i = 0; i < 30; i++) {
+					testCase = randomValue(min, max, 0);
 					serialized = Sermat.ser(testCase);
 					materialized = Sermat.mat(serialized);
 					expect(materialized).toEqual(testCase);
-					expect(Sermat.clone(testCase)).toEqual(testCase);
+					checkUtilities(testCase);
 				}
 			}
 		}
+	});
+	
+	it("with DAG-like structures.", function () { //////////////////////////////////////////////////
+		var testCount = 0,
+			testCase, serialized, materialized,
+			min, max, i, clone, hashCode,
+			modes = [
+				new Sermat({ mode: Sermat.REPEAT_MODE }),
+				new Sermat({ mode: Sermat.BINDING_MODE }),
+				new Sermat({ mode: Sermat.CIRCULAR_MODE })
+			];
+		for (min = 2; min < 4; min++) {
+			for (max = min; max < min + 4; max++) {
+				for (i = 0; i < 30; i++) {
+					testCase = randomValue(min, max, 0.5);
+					try {
+						serialized = Sermat.ser(testCase);
+					} catch (err) {
+						testCount++;
+						expect(err instanceof TypeError).toBe(true);
+						modes.forEach(function (sermat) {
+							serialized = sermat.ser(testCase);
+							materialized = sermat.mat(serialized);
+							expect(materialized).toEqual(testCase);
+							checkUtilities(testCase);
+						});
+					}
+				}
+			}
+		}
+		expect(testCount).toBeGreaterThan(30); // Unhappy issues of dealing with randomness :-/
 	});
 }); //// describe "Random tests".

@@ -232,7 +232,8 @@
 			{x:{y:2}}, {x:[],y:{}}, {x:{y:[1,2]},z:[{w:3},{w:4}]},
 			undefined
 		].forEach(function (v) {
-			expect(typeof Sermat.hashCode(v)).toBe('number');
+			var h = Sermat.hashCode(v);
+			expect(Math.floor(h)).toBe(h); // expect h to be an integer.
 		});
 	});
 }); //// describe "Sermat".
