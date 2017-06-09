@@ -434,60 +434,67 @@ function construct(id, obj, args) {
 }
 
 var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+\/)*/,
-	RE_NUM = /[+-]?(?:Infinity|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
-	RE_STR = /\"(?:[^\\\"\n]|\\[^\n])*\"|`(?:[^\\\`]|\\.)*`/,
+	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
+	RE_STR = /\"(?:[^\\\"\n]|\\[^\n])*\"/,
+	RE_STR2 = /`(?:[^\\\`]|\\.)*`/,
+	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
 	RE_ID = /[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*/,
 	RE_BIND = /\$[a-zA-Z0-9_]+(?:[.-]?[a-zA-Z0-9_]+)*/,
-	RE_SYMBOLS = /[\,[\]{:}(=)]/,
+	RE_SYMBOLS = /[,:[\]{}()=]/,
 	RE_EOL = /\r\n?|\n/g,
 	LEXER = new RegExp('^'+ RE_IGNORABLES.source +'(?:'+
 		'('+ RE_NUM.source 
 		+')|('+ RE_STR.source
+		+')|('+ RE_STR2.source
+		+')|('+ RE_CONS.source
 		+')|('+ RE_ID.source
 		+')|('+ RE_BIND.source
 		+')|('+ RE_SYMBOLS.source 
 		+')|$)'),
-	TOKENS = 'nsib',
-	/** These are the constant values handled by the format.
-	*/
-	CONSTANTS = {
-		'undefined': void 0,
-		'true': true,
-		'false': false,
-		'null': null, 
-		'NaN': NaN,
-		'Infinity': Infinity
-	};
+	LEX_EOI = 0,
+	LEX_NUM = 1,
+	LEX_STR = 2,
+	LEX_STR2 = 3,
+	LEX_CONS = 4,
+	LEX_ID = 5,
+	LEX_BIND = 6,
+	// SYMBOLS
+	LEX_COMMA    = 7,
+	LEX_COLON    = 8,
+	LEX_OBRACKET = 9,
+	LEX_CBRACKET = 10,
+	LEX_OBRACE   = 11,
+	LEX_CBRACE   = 12,
+	LEX_OPAREN   = 13,
+	LEX_CPAREN   = 14,
+	LEX_EQUAL    = 15;
 	
 function materialize(source, modifiers) {
-	var input = source +'', 
+	var input = source,
 		offset = 0,
 		token, text,
 		bindings = modifiers && modifiers.bindings || {},
 		sermat = this;
 
 	function nextToken() {
-		var tokens = LEXER.exec(input),
-			result, len, i;
-		text = '';
-		if (!tokens) {
-			error('Invalid character "'+ input.charAt(0) +'"');
-		} else {
+		var tokens, len, i, chr;
+		if (tokens = LEXER.exec(input)) {
+			//console.log(tokens);//LOG Uncomment for debugging.
 			len = tokens[0].length;
 			input = input.substr(len);
 			offset += len;
-			for (i = 1, len = TOKENS.length; i <= len; i++) {
+			text = '';
+			for (i = 1, len = tokens.length - 1; i < len; i++) {
 				if (tokens[i]) {
-					token = TOKENS.charAt(i-1);
 					text = tokens[i];
-					break;
+					return token = i;
 				}
-			}
-			if (!text) {
-				token = tokens[i] || '$';
-			}
-			return token;
+			} 
+			text = tokens[i];
+			token = ',:[]{}()='.indexOf(text);
+			return token = token < 0 ? LEX_EOI : token + LEX_COMMA;
 		}
+		error('Invalid character "'+ input.charAt(0) +'"');
 	}
 	
 	function error(msg) {
@@ -513,46 +520,48 @@ function materialize(source, modifiers) {
 	function parseValue() {
 		var t = text;
 		switch (token) {
-			case 'n':
+			case LEX_NUM:
 				nextToken();
-				return Number(t);
-			case 's':
+				return eval(t);
+			case LEX_STR:
 				nextToken();
-				return t.charAt(0) === '`' ? t.substr(1, t.length - 2).replace(/\\`/g, '`') : eval(t);
-			case '[':
+				return eval(t);
+			case LEX_STR2:
+				nextToken();
+				return t.substr(1, t.length - 2).replace(/\\`/g, '`');
+			case LEX_OBRACKET:
 				nextToken();
 				return parseArray([]);
-			case '{':
+			case LEX_OBRACE:
 				nextToken();
 				return parseObject({});
-			case 'b':
+			case LEX_BIND:
 				return parseBind();
-			case 'i':
+			case LEX_CONS:
 				nextToken();
-				if (CONSTANTS.hasOwnProperty(t)) {
-					return CONSTANTS[t];
-				} else {
-					shift('(');
-					return parseConstruction(t, null);
-				}
+				return eval(t);
+			case LEX_ID:
+				nextToken();
+				shift(LEX_OPAREN);
+				return parseConstruction(t, null);
 			default:
-				error();
+				error("Expected value but got `"+ t +"` (token="+ token +")!");
 		}
 	}
 
 	function parseArray(array) {
-		if (token !== ']') {
+		if (token !== LEX_CBRACKET) {
 			parseElements(array);
 		}
-		shift(']');
+		shift(LEX_CBRACKET);
 		return array;
 	}
 
 	function parseObject(obj) {
-		if (token !== '}') {
+		if (token !== LEX_CBRACE) {
 			parseElements(obj);
 		}
-		shift('}');
+		shift(LEX_CBRACE);
 		return obj;
 	}
 
@@ -562,31 +571,30 @@ function materialize(source, modifiers) {
 		while (true) {
 			t = text;
 			switch (token) {
-				case 'i':
-					if (!CONSTANTS.hasOwnProperty(t)) {
-						switch (nextToken()) {
-							case ':':
-								nextToken();
-								if (t === '__proto__') {
-									_setProto(obj, parseValue()); 
-								} else {
-									obj[t] = parseValue();
-								}
-								break;
-							case '(':
-								nextToken();
-								obj[i++] = parseConstruction(t, null);
-								break;
-							default:
-								error();
-						}
-					} else {
-						obj[i++] = CONSTANTS[t];
-						nextToken();
+				case LEX_CONS:
+					obj[i++] = eval(t);
+					nextToken();
+					break;
+				case LEX_ID:
+					switch (nextToken()) {
+						case LEX_COLON:
+							nextToken();
+							if (t === '__proto__') {
+								_setProto(obj, parseValue()); 
+							} else {
+								obj[t] = parseValue();
+							}
+							break;
+						case LEX_OPAREN:
+							nextToken();
+							obj[i++] = parseConstruction(t, null);
+							break;
+						default:
+							error();
 					}
 					break;
-				case 's':
-					if (nextToken() === ':') {
+				case LEX_STR:
+					if (nextToken() === LEX_COLON) {
 						nextToken();
 						if (t === '__proto__') {
 							_setProto(obj, parseValue()); 
@@ -597,20 +605,21 @@ function materialize(source, modifiers) {
 						obj[i++] = eval(t);
 					}
 					break;
-				case 'n':
+				case LEX_NUM:
 					obj[i++] = eval(t);
 					nextToken();
 					break;
-				case 'b': 
+				case LEX_BIND: 
 					obj[i++] = parseBind();
 					break;
-				case '[': case '{':
+				case LEX_OBRACKET:
+				case LEX_OBRACE:
 					obj[i++] = parseValue();
 					break;
 				default:
-					error();
+					error("Expected element but got `"+ t +"` (token="+ token +", input='"+ input +"')!"); //FIXME
 			}
-			if (token === ',') {
+			if (token === LEX_COMMA) {
 				nextToken();
 			} else {
 				break;
@@ -622,22 +631,22 @@ function materialize(source, modifiers) {
 	function parseBind() {
 		var id = text;
 		nextToken();
-		if (token === '=') {
+		if (token === LEX_EQUAL) {
 			if (bindings.hasOwnProperty(id)) {
 				error("Binding "+ id +" cannot be reassigned");
 			}
 			nextToken();
 			switch (token) {
-				case '[':
+				case LEX_OBRACKET:
 					nextToken();
 					return parseArray(bindings[id] = []);
-				case '{':
+				case LEX_OBRACE:
 					nextToken();
 					return parseObject(bindings[id] = {});
-				case 'i':
+				case LEX_ID:
 					var cons = text;
 					nextToken();
-					shift('(');
+					shift(LEX_OPAREN);
 					return bindings[id] = parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
 				default:
 					return bindings[id] = parseValue();
@@ -656,17 +665,17 @@ function materialize(source, modifiers) {
 
 	function parseConstruction(cons, obj) {
 		var args = [];
-		if (token !== ')') {
+		if (token !== LEX_CPAREN) {
 			parseElements(args);
 		}
-		shift(')');
+		shift(LEX_CPAREN);
 		return sermat.construct(cons, obj, args);
 	}
 	
 	// parseStart
 	nextToken();
 	var result = parseValue();
-	shift('$');
+	shift(LEX_EOI);
 	return result;
 } // materialize
 
@@ -811,9 +820,9 @@ function hashCode(value, modifiers) {
 			var record = sermat.record(obj.constructor)
 				|| autoInclude && sermat.include(obj.constructor);
 			if (!record) {
-				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
+				throw new TypeError("Sermat.hashCode: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
 			}
-			//TODO args = record.serializer.call(sermat, obj);
+			return hashObject(record.serializer.call(sermat, obj));
 		}
 		hashCodes[hashIndex] = hash;
 		return hash;
