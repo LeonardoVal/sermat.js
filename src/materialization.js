@@ -18,7 +18,7 @@ function construct(id, obj, args) {
 var RE_IGNORABLES = /(?:\s|\/\*(?:[^*]*|\n|\*+[^\/])*\*+\/)*/,
 	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
 	RE_STR = /\"(?:[^\\\"\r\n]|\\[^\r\n])*\"/,
-	RE_STR2 = /(?:`(?:.|[\r\n])*`)+/,
+	RE_STR2 = /(?:`(?:[^`]|[\r\n])*`)+/,
 	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
 	RE_ID = /[a-zA-Z_]+(?:[.-]?[a-zA-Z0-9_])*/,
 	RE_BIND = /\$(?:[.-]?[a-zA-Z0-9_])*/,
@@ -194,6 +194,7 @@ function materialize(source, modifiers) {
 				case LEX_BIND: 
 					obj[i++] = parseBind();
 					break;
+				case LEX_STR2:
 				case LEX_OBRACKET:
 				case LEX_OBRACE:
 					obj[i++] = parseValue();
