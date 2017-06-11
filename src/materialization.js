@@ -15,13 +15,13 @@ function construct(id, obj, args) {
 	}
 }
 
-var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+\/)*/,
+var RE_IGNORABLES = /(?:\s|\/\*(?:[^*]*|\n|\*+[^\/])*\*+\/)*/,
 	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
-	RE_STR = /\"(?:[^\\\"\n]|\\[^\n])*\"/,
-	RE_STR2 = /`(?:[^\\\`]|\\.)*`/,
+	RE_STR = /\"(?:[^\\\"\r\n]|\\[^\r\n])*\"/,
+	RE_STR2 = /(?:`(?:.|[\r\n])*`)+/,
 	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
-	RE_ID = /[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*/,
-	RE_BIND = /\$[a-zA-Z0-9_]+(?:[.-]?[a-zA-Z0-9_]+)*/,
+	RE_ID = /[a-zA-Z_]+(?:[.-]?[a-zA-Z0-9_])*/,
+	RE_BIND = /\$(?:[.-]?[a-zA-Z0-9_])*/,
 	RE_SYMBOLS = /[,:[\]{}()=]/,
 	RE_EOL = /\r\n?|\n/g,
 	LEXER = new RegExp('^'+ RE_IGNORABLES.source +'(?:'+
@@ -54,7 +54,7 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 function materialize(source, modifiers) {
 	var input = source,
 		offset = 0,
-		token, text,
+		token = -1, text = '',
 		bindings = modifiers && modifiers.bindings || {},
 		sermat = this;
 
@@ -110,7 +110,7 @@ function materialize(source, modifiers) {
 				return eval(t);
 			case LEX_STR2:
 				nextToken();
-				return t.substr(1, t.length - 2).replace(/\\`/g, '`');
+				return t.substr(1, t.length - 2).replace(/``/g, '`');
 			case LEX_OBRACKET:
 				nextToken();
 				return parseArray([]);
