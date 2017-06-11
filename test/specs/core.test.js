@@ -93,6 +93,29 @@
 		}
 	});
 	
+	it("with backtick literals.", function () { ////////////////////////////////////////////////////
+		function checkString(sermat, text) {
+			var serialized = '`'+ text.replace(/`/g, '``') +'`';
+			try {
+				expect(sermat.materialize(serialized)).toBe(text);
+			} catch (err) {
+				console.error('Materializing string '+ serialized +' ('+
+					text.split('').map(function (chr) { return chr.charCodeAt(0); }).join(',') +
+					') failed!');
+				throw err;
+			}
+		}
+		
+		['', 'a', 'abcdef', 
+		 '"', 'a"b', 
+		 '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+		 '`', '`1', '`1`', '1`1'
+		].forEach(function (str) {
+			checkString(Sermat, str);
+			checkString(new Sermat(), str);
+		});
+	});
+	
 	it("with arrays.", function () { ///////////////////////////////////////////////////////////////
 		function test(sermat) {
 			var array = [],
