@@ -441,13 +441,13 @@ function construct(id, obj, args) {
 	}
 }
 
-var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+\/)*/,
+var RE_IGNORABLES = /(?:\s|\/\*(?:[^*]*|\n|\*+[^\/])*\*+\/)*/,
 	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
-	RE_STR = /\"(?:[^\\\"\n]|\\[^\n])*\"/,
-	RE_STR2 = /`(?:[^\\\`]|\\.)*`/,
+	RE_STR = /\"(?:[^\\\"\r\n]|\\[^\r\n])*\"/,
+	RE_STR2 = /(?:`(?:[^`]|[\r\n])*`)+/,
 	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
-	RE_ID = /[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*/,
-	RE_BIND = /\$[a-zA-Z0-9_]+(?:[.-]?[a-zA-Z0-9_]+)*/,
+	RE_ID = /[a-zA-Z_]+(?:[.-]?[a-zA-Z0-9_])*/,
+	RE_BIND = /\$(?:[.-]?[a-zA-Z0-9_])*/,
 	RE_SYMBOLS = /[,:[\]{}()=]/,
 	RE_EOL = /\r\n?|\n/g,
 	LEXER = new RegExp('^'+ RE_IGNORABLES.source +'(?:'+
@@ -480,7 +480,7 @@ var RE_IGNORABLES = /(?:\s|\/\*(?:[\0-\)+-.0-\uFFFF]*|\*+[\0-\)+-.0-\uFFFF])*\*+
 function materialize(source, modifiers) {
 	var input = source,
 		offset = 0,
-		token, text,
+		token = -1, text = '',
 		bindings = modifiers && modifiers.bindings || {},
 		sermat = this;
 
@@ -536,7 +536,7 @@ function materialize(source, modifiers) {
 				return eval(t);
 			case LEX_STR2:
 				nextToken();
-				return t.substr(1, t.length - 2).replace(/\\`/g, '`');
+				return t.substr(1, t.length - 2).replace(/``/g, '`');
 			case LEX_OBRACKET:
 				nextToken();
 				return parseArray([]);
@@ -620,6 +620,7 @@ function materialize(source, modifiers) {
 				case LEX_BIND: 
 					obj[i++] = parseBind();
 					break;
+				case LEX_STR2:
 				case LEX_OBRACKET:
 				case LEX_OBRACE:
 					obj[i++] = parseValue();
@@ -1063,46 +1064,6 @@ function materializer_Error(type) {
 	};
 }
 
-/**
-*/
-member(CONSTRUCTIONS, 'new', Object.freeze({
-	identifier: 'new',
-	type: function $new() {
-		this.args = Array.prototype.slice.call(arguments);
-		this.cons = this.args.shift();
-	}, 
-	serializer: function serializer_new(obj) {
-		return [obj.cons].concat(obj.args);
-	},
-	materializer: function materializer_new(obj, args) {
-		return args && new (Function.prototype.bind.apply(args[0], args))();
-	}
-}));
-
-member(CONSTRUCTIONS, 'class', Object.freeze({
-	identifier: 'class',
-	type: function $class(cons, props) {
-		this.cons = cons;
-		this.props = props;
-	},
-	//FIXME serializer: <default serializer>,
-	materializer: function materializer_class(obj, args) {
-		if (!args) {
-			return null;
-		} else {
-			var type = args[0],
-				subType = function () {
-					type.apply(this, arguments);
-				};
-			_setProto(subType, type);
-			subType.prototype = Object.create(type.prototype);
-			subType.prototype.constructor = subType;
-			_assign(subType.prototype, args[1]);
-			return subType;
-		}
-	}
-}));
-
 /** ## Wrap-up #####################################################################################
 
 Here both `Sermat`'s prototype and singleton are set up. 
@@ -1125,7 +1086,7 @@ function Sermat(params) {
 		and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
 		supported by default.
 	*/
-	this.include('Boolean Number String Object Array Date RegExp new class'.split(' '));
+	this.include('Boolean Number String Object Array Date RegExp'.split(' '));
 }
 
 var __members__ = {
