@@ -209,7 +209,7 @@
 		}, Type1))).toThrow();
 	});
 	
-	it("with pseudo-constructions.", function () { /////////////////////////////////////////////////
+	xit("with pseudo-constructions.", function () { /////////////////////////////////////////////////
 		function Point2D(x, y) {
 			this.x = +x;
 			this.y = +y;
@@ -217,30 +217,6 @@
 		Point2D.__SERMAT__ = {};
 		var sermat = new Sermat();
 		sermat.include(Point2D);
-		
-		var v1 = sermat.mat('new($Point2D, 3, 9)');
-		expect(typeof v1).toBe('object');
-		expect(v1.constructor).toBe(Point2D);
-		expect(v1 instanceof Point2D).toBe(true);
-		expect(v1.x).toBe(3);
-		expect(v1.y).toBe(9);
-		
-		var v2 = sermat.mat('new(class($Point2D, {z:3}), 7, 1)');
-		expect(typeof v2).toBe('object');
-		expect(v2 instanceof Point2D).toBe(true);
-		expect(v2.x).toBe(7);
-		expect(v2.y).toBe(1);
-		expect(v2.z).toBe(3);
-		expect(v2.hasOwnProperty('z')).toBe(false);
-		expect(Object.getPrototypeOf(v2)).not.toBe(Point2D.prototype);
-		expect(Object.getPrototypeOf(Object.getPrototypeOf(v2))).toBe(Point2D.prototype);
-		expect(Object.getPrototypeOf(v2.constructor)).toBe(Point2D);
-		
-		var v3 = sermat.mat('[new($t=class($Point2D, {z:3}), 7, 1), new($t, 8, 8)]');
-		expect(v3[0] instanceof Point2D).toBe(true);
-		expect(v3[1] instanceof Point2D).toBe(true);
-		expect(v3[0].constructor).toBe(v3[1].constructor);
-		expect(Object.getPrototypeOf(v3[0])).toBe(Object.getPrototypeOf(v3[1]));
 	});
 	
 	it("with clone().", function () { //////////////////////////////////////////////////////////////
