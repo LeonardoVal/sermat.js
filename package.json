@@ -30,7 +30,7 @@
 			"karma-jasmine": "~1.0.2",
 			"jasmine-core": "~2.4.1",
 			"karma-chrome-launcher": "~1.0.1",
-			"karma-firefox-launcher": "~1.0.0",
+			"karma-firefox-launcher": "1.0.0",
 			"karma-sourcemap-loader": "~0.3.7",
 		"grunt-benchmark": "~1.0.0"
 	},
