@@ -47,7 +47,8 @@ of the serialization include:
 */
 //TODO Allow modifiers.bindings.
 function serialize(obj, modifiers) {
-	var mode = _modifier(modifiers, 'mode', this.modifiers.mode),
+	var sermat = this,
+		mode = _modifier(modifiers, 'mode', this.modifiers.mode),
 		pretty = _modifier(modifiers, 'pretty', this.modifiers.pretty),
 		onUndefined = _modifier(modifiers, 'onUndefined', this.modifiers.onUndefined),
 		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
@@ -55,7 +56,8 @@ function serialize(obj, modifiers) {
 		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes),
 		visited = mode === REPEAT_MODE ? null : [],
 		parents = [],
-		sermat = this;
+		_colon = pretty ? ' : ' : ':',
+		_equal = pretty ? ' = ' : '=';
 
 	function serializeValue(value, eol) {
 		switch (typeof value) {
@@ -129,7 +131,7 @@ function serialize(obj, modifiers) {
 			} else {
 				i = visited.push(obj) - 1;
 				if (mode & BINDING_MODE) {
-					output = '$'+ i + (pretty ? ' = ' : '=');
+					output = '$'+ i + _equal;
 				}
 			}
 		}
@@ -153,7 +155,7 @@ function serialize(obj, modifiers) {
 				added to the serialization as the `__proto__` property. 
 			*/
 				if (climbPrototypes && !objProto.hasOwnProperty('constructor')) {
-					elems += (elems ? ','+ eol2 : '') +'__proto__'+ (pretty ? ' : ' : ':')
+					elems += (elems ? ','+ eol2 : '') +'__proto__'+ _colon
 						+ serializeObject(objProto, eol);
 				}
 				output += '{'+ eol2 + elems + eol +'}';
@@ -193,16 +195,17 @@ function serialize(obj, modifiers) {
 	function serializeElements(obj, eol, eol2) {
 		var output = '',
 			sep = '',
-			i = 0;
+			i = 0,
+			_comma = ','+ eol2;
 		Object.keys(obj).forEach(function (k) {
 			output += sep;
 			if ((k|0) - k !== 0) {
-				output += (ID_REGEXP.exec(k) ? k : serializeString(k)) + (pretty ? ' : ' : ':');
+				output += (ID_REGEXP.exec(k) ? k : serializeString(k)) + _colon;
 			} else for (; k - i > 0; i++) {
-				output += serializeUndefined() +','+ eol2;
+				output += serializeUndefined() + _comma;
 			}
 			output += serializeValue(obj[k], eol2);
-			sep = ','+ eol2;
+			sep = _comma;
 			i++;
 		});
 		return output;
