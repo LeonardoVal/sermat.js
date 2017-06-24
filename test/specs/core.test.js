@@ -233,10 +233,6 @@
 		expect(obj3[0].y).toBe(2);
 		expect(obj3[1].z).toBe(3);
 		expect(Object.getPrototypeOf(obj3[0])).toBe(Object.getPrototypeOf(obj3[1]));
-		
-		expect(Sermat.hashCode(obj1)).not.toBe(Sermat.hashCode({y:2}));
-		expect(Sermat.hashCode(obj1)).not.toBe(Sermat.hashCode({x:1, y:2}));
-		expect(Sermat.hashCode(obj1)).not.toBe(Sermat.hashCode({y:2, x:1}));
 	});
 	
 	it(".clone()", function () { ///////////////////////////////////////////////////////////////////
