@@ -124,17 +124,29 @@ function hashCode(value, modifiers) {
 		visited = [],
 		hashCodes = [],
 		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
-		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude);
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
+		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes);
 
 	function hashObject(obj) {
 		var hash = 1,
 			hashIndex = visited.push(obj);
 		hashCodes.push(0);
 		if (Array.isArray(obj) || obj.constructor === Object || !useConstructions) {
-			//FIXME  || climbPrototypes && !objProto.hasOwnProperty('constructor')
-			for (var k in obj) {
-				hash = (31 * hash + (hashValue(k) ^ hashValue(obj[k]))) |0;
+			if (climbPrototypes) { 
+				var objProto = _getProto(obj);
+				if (!objProto.hasOwnProperty('constructor')) {
+					hash = hashObject(objProto);
+				}
 			}
+			var hashes = [];
+			for (var k in obj) {
+				hashes.push(hashValue(k) ^ hashValue(obj[k]));
+			}
+			hashes.sort(function (x,y) {
+				return x - y;
+			}).forEach(function (x) {
+				hash = (31 * hash + x) |0;
+			});
 		} else { // Constructions.
 			var record = sermat.record(obj.constructor)
 				|| autoInclude && sermat.include(obj.constructor);
