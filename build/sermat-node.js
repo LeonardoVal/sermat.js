@@ -753,19 +753,25 @@ function clone(obj, modifiers) {
 		visited = [],
 		cloned = [],
 		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
-		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude);
+		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
+		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes);
 	
 	function cloneObject(obj) {
 		visited.push(obj);
 		var isArray = Array.isArray(obj),
 			clonedObj;
 		if (isArray || obj.constructor === Object || !useConstructions) {
-			//FIXME || climbPrototypes && !objProto.hasOwnProperty('constructor')
 			clonedObj = isArray ? [] : {};
-			cloned.push(clonedObj);
-			for (var k in obj) {
-				clonedObj[k] = cloneValue(obj[k]);
+			if (climbPrototypes) { 
+				var objProto = _getProto(obj);
+				if (!objProto.hasOwnProperty('constructor')) {
+					_setProto(clonedObj, cloneObject(objProto));
+				}
 			}
+			cloned.push(clonedObj);
+			Object.keys(obj).forEach(function (k) {
+				clonedObj[k] = cloneValue(obj[k]);
+			});
 		} else { // Constructions.
 			var record = sermat.record(obj.constructor)
 				|| autoInclude && sermat.include(obj.constructor);
