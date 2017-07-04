@@ -2,12 +2,12 @@
 
 */
 
-/** `serializeAsProperties` is a generic way of serializing an object, by creating another object 
-with some of its properties. This method can be used to quickly implement a serializer function when 
+/** `serializeAsProperties` is a generic way of serializing an object, by creating another object
+with some of its properties. This method can be used to quickly implement a serializer function when
 the constructor of the type can be called with an object.
 */
 function serializeAsProperties(obj, properties, ownProperties) {
-	var result = {}, 
+	var result = {},
 		fromArray = Array.isArray(properties),
 		name;
 	for (var i in properties) {
@@ -36,11 +36,11 @@ function serializeWithConstructor(constructor, obj) {
 }
 
 /** `materializeWithConstructor` is a generic way of creating a new instance of the given type
-`constructor`. Basically a new object is built using the type's prototype, and then the constructor 
+`constructor`. Basically a new object is built using the type's prototype, and then the constructor
 is called on this object and the given arguments (`args`) to initialize it.
 
-This method can be used to quickly implement a materializer function when only a call to a 
-constructor function is required. It is the default materialization when no method has been given 
+This method can be used to quickly implement a materializer function when only a call to a
+constructor function is required. It is the default materialization when no method has been given
 for a registered type.
 */
 function materializeWithConstructor(constructor, obj, args) {
@@ -54,7 +54,7 @@ function materializeWithConstructor(constructor, obj, args) {
 	return obj;
 }
 
-/** `sermat` is a shortcut to materialize a serialization of a value, e.g. to clone the value. 
+/** `sermat` is a shortcut to materialize a serialization of a value, e.g. to clone the value.
 */
 function sermat(obj, modifiers) {
 	return this.mat(this.ser(obj, modifiers));
@@ -70,14 +70,14 @@ function clone(obj, modifiers) {
 		useConstructions = _modifier(modifiers, 'useConstructions', this.modifiers.useConstructions),
 		autoInclude = _modifier(modifiers, 'autoInclude', this.modifiers.autoInclude),
 		climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes);
-	
+
 	function cloneObject(obj) {
 		visited.push(obj);
 		var isArray = Array.isArray(obj),
 			clonedObj;
 		if (isArray || obj.constructor === Object || !useConstructions) {
 			clonedObj = isArray ? [] : {};
-			if (climbPrototypes) { 
+			if (climbPrototypes) {
 				var objProto = _getProto(obj);
 				if (!objProto.hasOwnProperty('constructor')) {
 					_setProto(clonedObj, cloneObject(objProto));
@@ -91,20 +91,25 @@ function clone(obj, modifiers) {
 			var record = sermat.record(obj.constructor)
 				|| autoInclude && sermat.include(obj.constructor);
 			if (!record) {
-				throw new TypeError("Sermat.clone: Unknown type \""+ sermat.identifier(obj.constructor) +"\"!");
+				throw new TypeError("Sermat.clone: Unknown type \""+
+					sermat.identifier(obj.constructor) +"\"!");
 			}
 			clonedObj = record.materializer.call(sermat, null, null);
 			cloned.push(clonedObj);
-			record.materializer.call(sermat, clonedObj, record.serializer.call(sermat, obj));
+			var clonedIdx = cloned.length - 1,
+				clonedArgs = record.serializer.call(sermat, obj).map(cloneValue);
+			clonedObj = record.materializer.call(sermat, clonedObj, clonedArgs);
+			// In case the materializer does not support empty initialization.
+			cloned[clonedIdx] = clonedObj;
 		}
 		return clonedObj;
 	}
-	
+
 	function cloneValue(value) {
 		switch (typeof value) {
 			case 'undefined':
 			case 'boolean':
-			case 'number':   
+			case 'number':
 			case 'string':
 			case 'function':
 				return value;
@@ -114,11 +119,11 @@ function clone(obj, modifiers) {
 				}
 				var i = visited.indexOf(value);
 				return i >= 0 ? cloned[i] : cloneObject(value);
-			default: 
+			default:
 				throw new Error('Unsupported type '+ typeof value +'!');
 		}
 	}
-	
+
 	return cloneValue(obj);
 }
 
@@ -138,7 +143,7 @@ function hashCode(value, modifiers) {
 			hashIndex = visited.push(obj);
 		hashCodes.push(0);
 		if (Array.isArray(obj) || obj.constructor === Object || !useConstructions) {
-			if (climbPrototypes) { 
+			if (climbPrototypes) {
 				var objProto = _getProto(obj);
 				if (!objProto.hasOwnProperty('constructor')) {
 					hash = hashObject(objProto);
@@ -164,15 +169,15 @@ function hashCode(value, modifiers) {
 		hashCodes[hashIndex] = hash;
 		return hash;
 	}
-		
+
 	function hashValue(value) {
 		switch (typeof value) {
 			case 'undefined':
-			case 'boolean':   
+			case 'boolean':
 			case 'number': return value >>> 0;
 			case 'string':
 				var result = 5381;
-				for (var i = 0, len = value.length & 0x1F; i < len; i++) { 
+				for (var i = 0, len = value.length & 0x1F; i < len; i++) {
 					result = result * 33 ^ value.charCodeAt(i);
 				}
 				return result >>> 0;
@@ -183,10 +188,10 @@ function hashCode(value, modifiers) {
 				}
 				var i = visited.indexOf(value);
 				return i >= 0 ? hashCodes[i] : hashObject(value);
-			default: 
+			default:
 				throw new Error('Unsupported type '+ typeof value +'!');
 		}
 	}
-	
+
 	return hashValue(value);
 }
