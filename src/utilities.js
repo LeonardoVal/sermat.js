@@ -171,13 +171,14 @@ function hashCode(value, modifiers) {
 	}
 
 	function hashValue(value) {
+		var i, len;
 		switch (typeof value) {
 			case 'undefined':
 			case 'boolean':
 			case 'number': return value >>> 0;
 			case 'string':
 				var result = 5381;
-				for (var i = 0, len = value.length & 0x1F; i < len; i++) {
+				for (i = 0, len = value.length & 0x1F; i < len; i++) {
 					result = result * 33 ^ value.charCodeAt(i);
 				}
 				return result >>> 0;
@@ -186,7 +187,7 @@ function hashCode(value, modifiers) {
 				if (value === null) {
 					return 0;
 				}
-				var i = visited.indexOf(value);
+				i = visited.indexOf(value);
 				return i >= 0 ? hashCodes[i] : hashObject(value);
 			default:
 				throw new Error('Unsupported type '+ typeof value +'!');
