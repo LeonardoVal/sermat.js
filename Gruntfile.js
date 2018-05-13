@@ -1,5 +1,40 @@
 ﻿/** Gruntfile for [sermat.js](http://github.com/LeonardoVal/sermat.js).
 */
+module.exports = function (grunt) {
+	grunt.initConfig({
+		pkg: grunt.file.readJSON('package.json'),
+	});
+
+	require('creatartis-grunt').config(grunt, {
+		sourceNames: ['__prologue__',
+				'registry',
+				'serialization',
+				'materialization',
+				'utilities',
+				'constructions',
+				'wrapup',
+			'__epilogue__'],
+		deps: [],
+		targets: {
+			build_umd:  { fileName: 'build/sermat',      wrapper: 'umd' },
+			build_amd:  { fileName: 'build/sermat-amd',  wrapper: 'amd' },
+			build_node: { fileName: 'build/sermat-node', wrapper: 'node' },
+			build_tag:  { fileName: 'build/sermat-tag',  wrapper: 'tag' }
+		},
+		jshint: { //TODO Fix these warnings.
+			proto: true,
+			laxbreak: true,
+			validthis: true,
+			evil: true,
+			'-W053': true,
+			'-W086': true
+		}
+	});
+
+	grunt.registerTask('default', ['build']);
+};
+
+/*
 var sourceFiles = ['__prologue__',
 		'registry',
 		'serialization',
@@ -145,3 +180,5 @@ module.exports = function(grunt) {
 	grunt.registerTask('perf', ['compile', 'karma:test_firefox', 'benchmark:build']);
 	grunt.registerTask('default', ['build']);
 };
+
+*/
