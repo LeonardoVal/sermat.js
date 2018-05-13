@@ -1,6 +1,4 @@
-﻿define(['sermat'], function (Sermat) {
-
-describe("Random tests", function () { "use strict";
+﻿describe("Random tests", function () { "use strict";
 
 // Timing //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -193,5 +191,3 @@ describe("Random tests", function () { "use strict";
 		expect(testCount).toBeGreaterThan(30); // Unhappy issues of dealing with randomness :-/
 	});
 }); //// describe "Random tests".
-
-}); //// define

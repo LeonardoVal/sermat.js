@@ -1,6 +1,4 @@
-﻿define(['sermat'], function (Sermat) {
-
-describe("Sermat", function () { "use strict";
+﻿describe("Sermat", function () { "use strict";
 
 	it("core definitions.", function () { //////////////////////////////////////////////////////////
 		expect(Sermat).toBeOfType("function");
@@ -54,7 +52,7 @@ describe("Sermat", function () { "use strict";
 				num = (Math.random() * 2000) - 1000;
 				expect(sermat.serialize(num)).toBe(num +'');
 				expect(sermat.materialize(num +'')).toBe(num);
-			}
+			};
 			['1e3', '2e-4', '33e2', '-7e-2', '123.45678e9',
 			 'Infinity', '+Infinity', '-Infinity'
 			].forEach(function (str) {
@@ -184,7 +182,7 @@ describe("Sermat", function () { "use strict";
 		].forEach(function (wrongInput) {
 			expect(Sermat.materialize.bind(Sermat, wrongInput)).toThrow();
 			expect(sermat.materialize.bind(sermat, wrongInput)).toThrow();
-		});
+		})
 	});
 
 	it("with circular references.", function () { //////////////////////////////////////////////////
@@ -213,13 +211,13 @@ describe("Sermat", function () { "use strict";
 		materialized[0].x = 17;
 		expect(materialized[1].x).toBe(17);
 
-		serialized = Sermat.serialize({a: obj, b: obj}, { mode: Sermat.BINDING_MODE });
+		serialized = Sermat.serialize({a: obj, b: obj}, { mode: Sermat.BINDING_MODE }),
 		materialized = Sermat.materialize(serialized);
 		expect(materialized.a).toBe(materialized.b);
 		materialized.a.x = 93;
 		expect(materialized.b.x).toBe(93);
 
-		serialized = Sermat.serialize([obj, {a: obj, b: {c: obj}}], { mode: Sermat.BINDING_MODE });
+		serialized = Sermat.serialize([obj, {a: obj, b: {c: obj}}], { mode: Sermat.BINDING_MODE }),
 		materialized = Sermat.materialize(serialized);
 		expect(Array.isArray(materialized)).toBe(true);
 		expect(materialized[0]).toBe(materialized[1].a);
@@ -277,5 +275,3 @@ describe("Sermat", function () { "use strict";
 		});
 	});
 }); //// describe "Sermat".
-
-}); //// define

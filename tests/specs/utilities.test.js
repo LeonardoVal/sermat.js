@@ -1,4 +1,6 @@
-﻿describe("Sermat utilities", function () { "use strict";
+﻿define(['sermat'], function (Sermat) {
+
+describe("Sermat utilities", function () { "use strict";
 	var List = function List() {
 		this.elems = Array.prototype.slice.call(arguments);
 	};
@@ -38,3 +40,5 @@
 		expect(list2.elems[1]).not.toBe(list1.elems[1]);
 	});
 }); //// describe "Sermat".
+
+}); //// define

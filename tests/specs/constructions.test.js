@@ -1,6 +1,4 @@
-﻿define(['sermat'], function (Sermat) {
-
-describe("Sermat constructions", function () { "use strict";
+﻿describe("Sermat constructions", function () { "use strict";
 	it("for Date.", function () { /////////////////////////////////////////////////////////////////
 		[new Date(), 
 		 new Date(Date.UTC(2000, 1)),
@@ -35,7 +33,7 @@ describe("Sermat constructions", function () { "use strict";
 			serializer: function serializer(value) {
 				return [value.x, value.y];
 			}
-		};
+		}
 		var sermat = new Sermat();
 		sermat.include(Point2D);
 		
@@ -133,7 +131,7 @@ describe("Sermat constructions", function () { "use strict";
 		expect(f1.length).toBe(f2.length);
 		expect(f1.name).toBe(f2.name);
 		
-		f1 = eval('((x) => x)'); //FIXME Done to avoid warnings with linters.
+		f1 = ((x) => x);
 		f2 = sermat.sermat(f1);
 		expect(typeof f2).toBe('function');
 		expect(f1(1)).toBe(f2(1));
@@ -254,5 +252,3 @@ describe("Sermat constructions", function () { "use strict";
 		expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
 	});
 }); //// describe "Sermat".
-
-}); //// define
