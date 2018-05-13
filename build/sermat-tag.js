@@ -1,12 +1,6 @@
 (function (init) { "use strict";
-	if (typeof define === 'function' && define.amd) {
-		define([], init); // AMD module.
-	} else if (typeof exports === 'object' && module.exports) {
-		module.exports = init(); // CommonJS module.
-	} else {
-		this.Sermat = init(); // Browser.
-	}
-}).call(this,/** Library wrapper and layout.
+			this.sermat = init();
+		}).call(this,/** Library wrapper and layout.
 */
 function __init__() { "use strict";
 	
@@ -872,13 +866,14 @@ function hashCode(value, modifiers) {
 	}
 
 	function hashValue(value) {
+		var i, len;
 		switch (typeof value) {
 			case 'undefined':
 			case 'boolean':
 			case 'number': return value >>> 0;
 			case 'string':
 				var result = 5381;
-				for (var i = 0, len = value.length & 0x1F; i < len; i++) {
+				for (i = 0, len = value.length & 0x1F; i < len; i++) {
 					result = result * 33 ^ value.charCodeAt(i);
 				}
 				return result >>> 0;
@@ -887,7 +882,7 @@ function hashCode(value, modifiers) {
 				if (value === null) {
 					return 0;
 				}
-				var i = visited.indexOf(value);
+				i = visited.indexOf(value);
 				return i >= 0 ? hashCodes[i] : hashObject(value);
 			default:
 				throw new Error('Unsupported type '+ typeof value +'!');
@@ -1180,4 +1175,4 @@ member(Sermat, '__dependencies__', [], 4);
 */
 	return Sermat;
 });
-//# sourceMappingURL=sermat-umd.js.map
+//# sourceMappingURL=sermat-tag.js.map
