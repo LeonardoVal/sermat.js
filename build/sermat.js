@@ -4,7 +4,7 @@
 			} else if (typeof exports === 'object' && module.exports) {
 				module.exports = init(); // CommonJS module.
 			} else {
-				this.sermat = init(); // Browser.
+				this.Sermat = init(); // Browser.
 			}
 		}).call(this,/** Library wrapper and layout.
 */

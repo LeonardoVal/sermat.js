@@ -1,5 +1,5 @@
 (function (init) { "use strict";
-			this.sermat = init();
+			this.Sermat = init();
 		}).call(this,/** Library wrapper and layout.
 */
 function __init__() { "use strict";
