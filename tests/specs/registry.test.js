@@ -1,4 +1,6 @@
-﻿describe("Sermat registry", function () { "use strict";
+﻿define(['sermat'], function (Sermat) {
+
+describe("Sermat registry", function () { "use strict";
 	var Point2D = function Point2D(x, y) {
 			this.x = +x;
 			this.y = +y;
@@ -100,3 +102,5 @@
 		expect(sermat3.exclude([Date, Date])).toBe(1);
 	});
 }); //// describe "Sermat".
+
+}); //// define
