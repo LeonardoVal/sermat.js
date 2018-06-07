@@ -6,6 +6,7 @@ module.exports = function (grunt) {
 	});
 
 	require('creatartis-grunt').config(grunt, {
+		globalName: 'Sermat',
 		sourceNames: ['__prologue__',
 				'registry',
 				'serialization',
