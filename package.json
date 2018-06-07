@@ -25,7 +25,7 @@
 	],
 	"dependencies": {},
 	"devDependencies": {
-		"creatartis-grunt": "0.0.12"
+		"creatartis-grunt": "0.0.13"
 	},
 	"scripts": {
 		"test": "grunt test"
