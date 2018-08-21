@@ -26,26 +26,28 @@ describe("Sermat constructions", function () { "use strict";
 	});
 
 	it("with default materializer.", function () { ////////////////////////////////////////////////
-		function Point2D(x, y) {
+		function Point3D(x, y, z) {
 			this.x = +x;
 			this.y = +y;
+			this.z = +z;
 		}
-		Point2D.__SERMAT__ = {
-			identifier: "Point2D",
+		Point3D.__SERMAT__ = {
+			identifier: "Point3D",
 			serializer: function serializer(value) {
-				return [value.x, value.y];
+				return [value.x, value.y, value.z];
 			}
 		};
 		var sermat = new Sermat();
-		sermat.include(Point2D);
+		sermat.include(Point3D);
 		
-		[new Point2D(3, 77), new Point2D(2.95, Infinity), new Point2D(52)
+		[new Point3D(3, 77), new Point3D(2.95, Infinity), new Point3D(52)
 		].forEach(function (p1) {
 			var p2 = sermat.sermat(p1); 
-			expect(p2.constructor).toBe(Point2D);
-			expect(p2 instanceof Point2D).toBe(true);
+			expect(p2.constructor).toBe(Point3D);
+			expect(p2 instanceof Point3D).toBe(true);
 			expect(p2.x +'').toBe(p1.x +''); // String conversion is used so that comparing NaNs works.
 			expect(p2.y +'').toBe(p1.y +'');
+			expect(p2.z +'').toBe(p1.z +'');
 		});
 	});
 	
