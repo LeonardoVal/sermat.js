@@ -33,7 +33,8 @@ module.exports = function (grunt) {
 		perf: true,
 		connect: {
 			console: 'tests/console.html'
-		}
+		},
+		sourceMap: false //FIXME Workaround for a bug in creatartis-grunt.
 	});
 
 	grunt.registerTask('default', ['build']);
