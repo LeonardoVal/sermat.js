@@ -172,6 +172,26 @@ export const construction_Function = construction(Function, 'Function',
     }
   });
 
+/** + `Set` instances are serialized with a list of members.
+*/
+export const construction_Set = construction(Set, 'Set',
+  function serialize_Set(value) {
+    return [[...value]];
+  },
+  function materialize_Set(obj, args) {
+    return args && new Set(args);
+  });
+
+/** + `Map` instances are serialized with a list of entries.
+*/
+export const construction_Map = construction(Map, 'Map',
+  function serialize_Map(value) {
+    return [[...value]];
+  },
+  function materialize_Map(obj, args) {
+    return args && new Map(args);
+  });
+
 /** + Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`, `SyntaxError`, `TypeError`
   and `URIError`) are not registered by default, but are available. Error instances are serialized
   with their `name`, `message` and `stack`. The `stack` trace is overriden, since it is
@@ -233,6 +253,8 @@ export const CONSTRUCTIONS = [
   construction_RegExp,
   construction_Date,
   construction_Function,
+  construction_Set,
+  construction_Map,
   construction_Error,
   construction_EvalError,
   construction_RangeError,

@@ -37,10 +37,10 @@ export default class Sermat {
     });
     Object.defineProperty(this, 'modifiers', { value: modifiers });
     /** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`,
-      and `Array`, but not `Function`) are always registered. Also `Date` and `RegExp` are
+      `Array`, `Set`, `Map`, but not `Function`) are always registered. Also `Date` and `RegExp` are
       supported by default.
     */
-    this.include(['Boolean', 'Number', 'String', 'Object', 'Array', 'Date', 'RegExp']);
+    this.include(['Boolean', 'Number', 'String', 'Object', 'Array', 'Date', 'RegExp', 'Set', 'Map']);
   }
 
   /**
