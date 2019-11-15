@@ -33,9 +33,6 @@ of the serialization include:
 
 + `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable.
 */
-// TODO Allow modifiers.bindings.
-
-
 
 export default class Serializer {
   constructor(params) {
@@ -308,5 +305,32 @@ export default class Serializer {
     } else {
       throw new TypeError(`Serializer for ${identifier} did not return an array but \`${args}\`!`);
     }
+  }
+
+  // Utilities /////////////////////////////////////////////////////////////////////////////////////
+
+  /** `properties` is a generic way of serializing an object, by creating another object with some
+   * of its properties. This method can be used in a serializer function when the constructor of the
+   * type can be called with an object.
+  */
+  properties(obj, ...properties) {
+    const result = properties.reduce((result, prop) => {
+      result[prop] = obj[prop];
+      return result;
+    }, {});
+    return [result];
+  }
+
+  /** `constructorArgs` serializes the `obj` object with a list of properties inferred from the
+   * `constructor`'s formal argument list.
+  */
+  constructorArgs(obj, constructor) {
+    const sourceCode = `${constructor}`;
+    const comps = /^function\s*[\w$]*\s*\(([^)]*)\)\s*\{/.exec(sourceCode)
+      || /^\(([^)]*)\)\s*=>/.exec(sourceCode);
+    if (comps && comps[1]) {
+      return comps[1].split(/\s*,\s*/).map((k) => obj[k]);
+    }
+    throw new TypeError(`Cannot infer a serialization from constructor (${constructor})!`);
   }
 } // class Serializer
