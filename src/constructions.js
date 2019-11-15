@@ -176,7 +176,7 @@ export const construction_Function = construction(Function, 'Function',
 */
 export const construction_Set = construction(Set, 'Set',
   function serialize_Set(value) {
-    return [[...value]];
+    return [...value];
   },
   function materialize_Set(obj, args) {
     return args && new Set(args);
@@ -186,7 +186,7 @@ export const construction_Set = construction(Set, 'Set',
 */
 export const construction_Map = construction(Map, 'Map',
   function serialize_Map(value) {
-    return [[...value]];
+    return [...value];
   },
   function materialize_Map(obj, args) {
     return args && new Map(args);
