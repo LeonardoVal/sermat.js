@@ -14,6 +14,7 @@ import {
   CIRCULAR_MODE,
 } from './common';
 import Serializer from './serialization';
+import Materializer from './materialization';
 
 export default class Sermat {
   static BASIC_MODE = BASIC_MODE;
@@ -89,6 +90,17 @@ export default class Sermat {
     });
     return serializer.serializeToString(value);
   }
+
+  /**
+  */
+  materialize(text, modifiers) {
+    const materializer = new Materializer({
+      ...this.modifiers,
+      ...modifiers,
+      construction: this.construction.bind(this),
+    });
+    return materializer.materialize(text);
+  }
 } // class Sermat
 
 const SINGLETON = new Sermat();
@@ -97,3 +109,4 @@ Object.defineProperty(Sermat, '__SINGLETON__', { value: SINGLETON });
 Object.defineProperty(Sermat, 'include', { value: SINGLETON.include.bind(SINGLETON) });
 Object.defineProperty(Sermat, 'construction', { value: SINGLETON.construction.bind(SINGLETON) });
 Object.defineProperty(Sermat, 'serialize', { value: SINGLETON.serialize.bind(SINGLETON) });
+Object.defineProperty(Sermat, 'materialize', { value: SINGLETON.materialize.bind(SINGLETON) });
