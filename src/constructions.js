@@ -51,13 +51,11 @@ export function construction(type, identifier, serializer, materializer) {
   if (!identifier) {
     throw new Error(`No identifier available for type '${type}'!`);
   }
-  serializer = serializer || function serialize_default(obj) {
-    return [{ ...obj }];
-  };
+  serializer = serializer || ((obj) => [{ ...obj }]);
   if (typeof serializer !== 'function') {
     throw new TypeError(`Serializer given for type '${identifier}' is not a function!`);
   }
-  materializer = materializer || function materialize_default(obj, args) {
+  materializer = materializer || ((obj, args) => {
     if (!obj) {
       obj = Object.create(type.prototype);
       if (!args) {
@@ -66,7 +64,7 @@ export function construction(type, identifier, serializer, materializer) {
     }
     Object.assign(obj, args);
     return obj;
-  };
+  });
   if (typeof materializer !== 'function') {
     throw new TypeError(`Materializer given for type '${identifier}' is not a function!`);
   }
