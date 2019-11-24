@@ -91,6 +91,10 @@ export default class Sermat {
     return serializer.serializeToString(value);
   }
 
+  ser(text, modifiers) {
+    return this.serialize(text, modifiers);
+  }
+
   /**
   */
   materialize(text, modifiers) {
@@ -101,12 +105,20 @@ export default class Sermat {
     });
     return materializer.materialize(text);
   }
+
+  mat(text, modifiers) {
+    return this.materialize(text, modifiers);
+  }
+
+  sermat(value, modifiers) {
+    return this.mat(this.ser(value, modifiers), modifiers);
+  }
 } // class Sermat
 
 const SINGLETON = new Sermat();
 
 Object.defineProperty(Sermat, '__SINGLETON__', { value: SINGLETON });
-Object.defineProperty(Sermat, 'include', { value: SINGLETON.include.bind(SINGLETON) });
-Object.defineProperty(Sermat, 'construction', { value: SINGLETON.construction.bind(SINGLETON) });
-Object.defineProperty(Sermat, 'serialize', { value: SINGLETON.serialize.bind(SINGLETON) });
-Object.defineProperty(Sermat, 'materialize', { value: SINGLETON.materialize.bind(SINGLETON) });
+['include', 'construction', 'serialize', 'ser', 'materialize', 'mat',
+].forEach((id) => {
+  Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });  
+});
