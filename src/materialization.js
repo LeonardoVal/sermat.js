@@ -3,10 +3,15 @@
 /* eslint-disable no-eval */
 /* eslint-disable no-plusplus */
 /* eslint-disable no-mixed-operators */
-const LEXER_REGEXP = /([[\](){}:,=]|[-+]?[-+\w$]+|"(?:[^"\\\n]|\\[^\n])*"|`(?:[^`\\]|\\.)*`)(?:\s|\/\*.*?\*\/)*/m;
-const CONSTANT_REGEXP = /^(?:true|false|null|void|[-+]?(Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|".*|`.*)$/m;
+const LEXER_REGEXP = /([[\](){}:,=]|[-+]?[-+\w.$]+|"(?:[^"\\\n]|\\[^\n])*"|`(?:[^`\\]|\\.)*`)(?:\s|\/\*.*?\*\/)*/m;
+const ATOM_REGEXP = /^(?:true|false|null|void|[-+]?(Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|".*|`.*)$/m;
 const ID_REGEXP = /^[a-zA-Z_$](?:[.-]?[a-zA-Z0-9_]+)*$/;
 const KEY_REGEXP = /^(?:[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*|".*)$/;
+
+const ATOM_VALUES = new Map([
+  ['true', true], ['false', false], ['null', null], ['void', undefined],
+  ['Infinity', Infinity], ['+Infinity', Infinity], ['-Infinity', -Infinity], ['NaN', NaN],
+]);
 
 export default class Materializer {
   constructor(params) {
@@ -40,6 +45,7 @@ export default class Materializer {
     this.tokens = text.split(LEXER_REGEXP);
     this.bindings = new Map();
     const value = this.parseValue();
+    this.peek(undefined);
     return value;
   }
 
@@ -73,8 +79,8 @@ export default class Materializer {
 
   parseValue(bindId) {
     const token = this.shift();
-    if (CONSTANT_REGEXP.test(token)) {
-      return JSON.parse(token);
+    if (ATOM_REGEXP.test(token)) {
+      return this.parseAtom(token);
     }
     if (token === '[') {
       return this.parseArray(bindId);
@@ -90,6 +96,16 @@ export default class Materializer {
       return this.parseConstruction(token, bindId);
     }
     throw new SyntaxError(`Expected value but got '${token}'`);
+  }
+
+  parseAtom(token) {
+    if (ATOM_VALUES.has(token)) {
+      return ATOM_VALUES.get(token);
+    }
+    if (token.startsWith('`')) {
+      token = `"${token.slice(1, -1).replace('\n', '\\n').replace('"', '\\"')}"`;
+    }
+    return JSON.parse(token);
   }
 
   parseArray(bindId) {
