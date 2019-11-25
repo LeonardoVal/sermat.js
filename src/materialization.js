@@ -7,6 +7,7 @@ const LEXER_REGEXP = /([[\](){}:,=]|[-+]?[-+\w.$]+|"(?:[^"\\\n]|\\[^\n])*"|`(?:[
 const ATOM_REGEXP = /^(?:true|false|null|void|[-+]?(Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|".*|`.*)$/m;
 const ID_REGEXP = /^[a-zA-Z_$](?:[.-]?[a-zA-Z0-9_]+)*$/;
 const KEY_REGEXP = /^(?:[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*|".*)$/;
+const TRIM_PREFIX_REGEXP = /^(?:\s|\/\*.*?\*\/)*/m;
 
 const ATOM_VALUES = new Map([
   ['true', true], ['false', false], ['null', null], ['void', undefined],
@@ -42,7 +43,7 @@ export default class Materializer {
     this.offset = 0;
     this.lineNum = 0;
     this.colNum = 0;
-    this.tokens = text.split(LEXER_REGEXP);
+    this.tokens = text.replace(TRIM_PREFIX_REGEXP, '').split(LEXER_REGEXP);
     this.bindings = new Map();
     const value = this.parseValue();
     this.peek(undefined);
