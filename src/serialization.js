@@ -40,7 +40,7 @@ export default class Serializer {
   }
 
   /** */
-  initialize({ 
+  initialize({
     mode = BASIC_MODE,
     onUndefined = TypeError,
     useConstructions = true,
@@ -72,7 +72,7 @@ export default class Serializer {
   /** */
   serializeToString(value) {
     let result = '';
-    if (this.pretty) {
+    if (!this.pretty) {
       for (const token of this.serialize(value)) {
         result += token;
       }
@@ -314,9 +314,9 @@ export default class Serializer {
    * type can be called with an object.
   */
   properties(obj, ...properties) {
-    const result = properties.reduce((result, prop) => {
-      result[prop] = obj[prop];
-      return result;
+    const result = properties.reduce((props, prop) => {
+      props[prop] = obj[prop];
+      return props;
     }, {});
     return [result];
   }
