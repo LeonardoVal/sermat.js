@@ -118,7 +118,8 @@ export default class Sermat {
 const SINGLETON = new Sermat();
 
 Object.defineProperty(Sermat, '__SINGLETON__', { value: SINGLETON });
-['include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
+[
+  'include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
 ].forEach((id) => {
-  Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });  
+  Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });
 });
