@@ -1,0 +1,265 @@
+﻿/* global describe, it, xit, expect, fail */
+import Sermat from '../../dist/sermat';
+
+describe('Sermat', () => {
+
+  it('core definitions.', () => {
+    expect(Sermat).toBeOfType('function');
+    const newSermat = new Sermat();
+    ['serialize', 'ser', 'materialize', 'mat', 'sermat'].forEach((id) => {
+      expect(Sermat[id]).toBeOfType('function');
+      expect(newSermat[id]).toBeOfType('function');
+    });
+    // expect(Sermat.identifier).toBeOfType('function');
+    // expect(Sermat.register).toBeOfType('function');
+  });
+
+  it('with simple values.', () => {
+    [Sermat, new Sermat()].forEach((sermat) => {
+      expect(sermat.serialize(true)).toBe('true');
+      expect(sermat.serialize(false)).toBe('false');
+      expect(sermat.serialize(null)).toBe('null');
+      expect(sermat.materialize('true')).toBe(true);
+      expect(sermat.materialize('false')).toBe(false);
+      expect(sermat.materialize('null')).toBe(null);
+    });
+  });
+
+  it('with undefined values.', () => {
+    [Sermat, new Sermat()].forEach((sermat) => {
+      expect(() => sermat.serialize(undefined))
+        .toThrow(new TypeError('Cannot serialize undefined value!'));
+      expect(sermat.serialize(undefined, { onUndefined: null })).toBe('null');
+      expect(sermat.serialize(undefined, { onUndefined: 123 })).toBe('123');
+      expect(sermat.serialize.bind(sermat, undefined, { onUndefined: SyntaxError }))
+        .toThrow(new SyntaxError('Cannot serialize undefined value!'));
+      expect(sermat.serialize(undefined, { onUndefined: () => false }))
+        .toBe('false');
+    });
+  });
+
+  it('with numbers.', () => {
+    [Sermat, new Sermat()].forEach((sermat) => {
+      let num;
+      for (let i = 0; i < 30; i += 1) {
+        num = (Math.random() * 2000) - 1000;
+        expect(sermat.serialize(num)).toBe(`${num}`);
+        expect(sermat.materialize(`${num}`)).toBe(num);
+      }
+      [
+        '1e3', '2e-4', '33e2', '-7e-2', '123.45678e9',
+        'Infinity', '+Infinity', '-Infinity',
+      ].forEach((str) => {
+        expect(sermat.materialize(str)).toBe(+str);
+      });
+      expect(Number.isNaN(sermat.materialize('NaN'))).toBe(true);
+      expect(sermat.serialize(Infinity)).toBe('Infinity');
+      expect(sermat.serialize(-Infinity)).toBe('-Infinity');
+      expect(sermat.serialize(NaN)).toBe('NaN');
+    });
+  });
+
+  it('with strings.', () => {
+    const checkString = (sermat, text) => {
+      const serialized = sermat.serialize(text);
+      try {
+        expect(sermat.materialize(serialized)).toBe(text);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`Materializing string ${serialized} (${
+          text.split('').map((chr) => chr.charCodeAt(0)).join(',')}) failed!`);
+        throw err;
+      }
+    };
+    [Sermat, new Sermat()].forEach((sermat) => {
+      ['', 'a', 'abcdef', '"', 'a"b',
+        '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+      ].forEach((str) => {
+        checkString(sermat, str);
+      });
+      for (let i = 0; i < 1024; i += 1) {
+        checkString(sermat, String.fromCharCode(i));
+      }
+    });
+  });
+
+  it('with arrays.', () => {
+    [Sermat, new Sermat()].forEach((sermat) => {
+      const array = [];
+      let serialized = sermat.serialize(array);
+      expect(sermat.serialize(sermat.materialize(serialized))).toBe(serialized);
+      [
+        1, 'a', '\n', true, null, [1],
+      ].forEach((value) => {
+        array.push(value);
+        serialized = sermat.serialize(array);
+        try {
+          expect(sermat.serialize(sermat.materialize(serialized))).toBe(serialized);
+        } catch (err) {
+          fail(`matser failed for ${serialized} with ${err}`);
+        }
+      });
+    });
+  });
+
+  xit('with object literals.', () => {
+    [
+      {}, { a: 1 }, { a: 1, b: 'x' }, { a: 1, b: 'x', c: true },
+      { a: { b: 1 } }, { a: { b: 1 }, c: { d: 'x' } }, { a: { b: { c: null } } },
+      { true1: true }, { NaNa: NaN },
+      { 0: 0 }, { 0: 0, 1: 1, 2: 2 }, { 0: 0, 1: 1, a: 'a' },
+    ].forEach((obj, i) => {
+      [Sermat, new Sermat()].forEach((sermat) => {
+        const serialized = sermat.serialize(obj);
+        const materialized = sermat.materialize(serialized);
+        expect(sermat.serialize(materialized)).toBe(serialized);
+        for (const k in obj) {
+          expect(Object.prototype.hasOwnProperty.call(materialized, k)).toBe(true,
+            `Materialized object ${serialized} should have had a member ${k} with value ${obj[k]} (test #${i})!`,
+          );
+        }
+      });
+    });
+  });
+
+  xit('with backtick literals.', () => {
+    const asBackTickLiteral = (text) => `\`${text.replace(/`/g, '``')}\``;
+    const checkValue = (sermat, serialized, value) => {
+      try {
+        expect(sermat.materialize(serialized)).toEqual(value);
+      } catch (err) {
+        fail(`Materializing (${serialized}) failed with ${err}!`);
+      }
+    };
+    [
+      '', 'a', 'abcdef',
+      '"', 'a"b',
+      '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+      '`', '`1', '`1`', '1`1'
+    ].forEach((str) => {
+      [Sermat, new Sermat()].forEach((sermat) => {
+        checkValue(sermat, asBackTickLiteral(str), str);
+      });
+    });
+    [Sermat, new Sermat()].forEach((sermat) => {
+      checkValue(sermat, '[``]', ['']);
+      checkValue(sermat, '[`a`, `b`]', ['a', 'b']);
+      checkValue(sermat, '{x:`123`}', { x: '123' });
+      checkValue(sermat, '{x:`one`,y:`two`}', { x: 'one', y: 'two' });
+      checkValue(sermat, '[$x=`??`,$x]', ['??', '??']);
+    });
+  });
+
+  xit('with comments.', () => {
+    [Sermat, new Sermat()].forEach((sermat) => {
+      expect(sermat.materialize('1 /* comment */')).toBe(1);
+      expect(sermat.materialize('/* comment */ true')).toBe(true);
+      expect(sermat.materialize('/* [ */ null /* ] */')).toBe(null);
+      expect(sermat.serialize(sermat.materialize('[1 /*, 2 */, 3]'))).toBe('[1,3]');
+    });
+  });
+
+  xit('with errors.', () => {
+    ['', ' \n\t', '// comment ', '/* comment */',
+      'TRUE', 'False', 'NuLL',
+      '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
+      "'null'", '"a', '"\\"', '"\\u12"',
+      '[', ']', '[,1]', '[1,]', '[,]',
+      '{', '}', '{,a:1}', '{a:1,}', '{,}', '{a:,1}', '{a,:1}', '{a::1}', '{:a:1}', '{a:1:}',
+    ].forEach((wrongInput) => {
+      [Sermat, new Sermat()].forEach((sermat) => {
+        expect(() => sermat.materialize(wrongInput)).toThrow();
+      });
+    });
+  });
+
+  xit('with circular references.', function () { //////////////////////////////////////////////////
+    var obj = {};
+    obj.x = obj;
+    expect(Sermat.serialize.bind(Sermat, obj)).toThrow();
+    expect(Sermat.serialize.bind(Sermat, obj, { mode: Sermat.REPEAT_MODE })).toThrow();
+    expect(Sermat.serialize(obj, { mode: Sermat.CIRCULAR_MODE })).toBe('$0={x:$0}');
+  });
+
+  xit('with repeated objects.', function () { /////////////////////////////////////////////////////
+    var obj = {};
+    expect(Sermat.serialize.bind(Sermat, [obj, obj])).toThrow();
+    expect(Sermat.serialize.bind(Sermat, {a: obj, b: obj})).toThrow();
+
+    expect(Sermat.serialize([obj, obj], { mode: Sermat.REPEAT_MODE })).toBe('[{},{}]');
+    expect(Sermat.serialize({a: obj, b: obj}, { mode: Sermat.REPEAT_MODE })).toBe('{a:{},b:{}}');
+  });
+
+  xit('with bindings.', function () { /////////////////////////////////////////////////////////////
+    var obj = {x:88},
+      serialized = Sermat.serialize([obj, obj], { mode: Sermat.BINDING_MODE }),
+      materialized = Sermat.materialize(serialized);
+    expect(Array.isArray(materialized)).toBe(true);
+    expect(materialized[0]).toBe(materialized[1]);
+    materialized[0].x = 17;
+    expect(materialized[1].x).toBe(17);
+
+    serialized = Sermat.serialize({a: obj, b: obj}, { mode: Sermat.BINDING_MODE });
+    materialized = Sermat.materialize(serialized);
+    expect(materialized.a).toBe(materialized.b);
+    materialized.a.x = 93;
+    expect(materialized.b.x).toBe(93);
+
+    serialized = Sermat.serialize([obj, {a: obj, b: {c: obj}}], { mode: Sermat.BINDING_MODE });
+    materialized = Sermat.materialize(serialized);
+    expect(Array.isArray(materialized)).toBe(true);
+    expect(materialized[0]).toBe(materialized[1].a);
+    expect(materialized[0]).toBe(materialized[1].b.c);
+  });
+
+  xit('with prototypes.', function () { ///////////////////////////////////////////////////////////
+    var obj1 = Object.assign(Object.create({x:1}),{y:2}),
+      obj2 = Sermat.sermat(obj1);
+    expect(obj2.x).toBe(1);
+    expect(obj2.y).toBe(2);
+    expect(obj2.hasOwnProperty('x')).toBe(false);
+    expect(obj2.hasOwnProperty('y')).toBe(true);
+    expect(Object.getPrototypeOf(obj2).hasOwnProperty('x')).toBe(true);
+    expect(Object.getPrototypeOf(obj2).constructor).toBe(Object);
+
+    var obj3 = Sermat.mat('[{y:2,__proto__:$0={x:1}},{z:3,__proto__:$0}]');
+    expect(obj3[0].x).toBe(1);
+    expect(obj3[1].x).toBe(1);
+    expect(obj3[0].y).toBe(2);
+    expect(obj3[1].z).toBe(3);
+    expect(Object.getPrototypeOf(obj3[0])).toBe(Object.getPrototypeOf(obj3[1]));
+  });
+
+  xit('.clone()', function () { ///////////////////////////////////////////////////////////////////
+    expect(Sermat.clone(NaN) +'').toBe('NaN');
+    [  true, false,
+      0, 1, 2, -1, 0.5, 1e3, 2e-4, 33e2, -7e-2, 123.45678e9, Infinity, -Infinity,
+      '', 'a', 'abcdef', '"', 'a"b',
+      '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+      [], [1], [1,2,3],
+      null, {}, {x:1}, {x:1, y:2},
+      [[]], [[],[1],[1,2]], [{}], [{},{}], [{x:[1,2]},[{y:3}]],
+      {x:{y:2}}, {x:[],y:{}}, {x:{y:[1,2]},z:[{w:3},{w:4}]},
+      undefined
+    ].forEach(function (v) {
+      expect(Sermat.clone(v)).toEqual(v);
+    });
+  });
+
+  xit('.hashCode()', function () { ////////////////////////////////////////////////////////////////
+    expect(Sermat.clone(NaN) +'').toBe('NaN');
+    [  true, false,
+      0, 1, 2, -1, 0.5, 1e3, 2e-4, 33e2, -7e-2, 123.45678e9, Infinity, -Infinity,
+      '', 'a', 'abcdef', '"', 'a"b',
+      '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
+      [], [1], [1,2,3],
+      null, {}, {x:1}, {x:1, y:2},
+      [[]], [[],[1],[1,2]], [{}], [{},{}], [{x:[1,2]},[{y:3}]],
+      {x:{y:2}}, {x:[],y:{}}, {x:{y:[1,2]},z:[{w:3},{w:4}]},
+      undefined
+    ].forEach(function (v) {
+      var h = Sermat.hashCode(v);
+      expect(Math.floor(h)).toBe(h); // expect h to be an integer.
+    });
+  });
+}); //// describe "Sermat".
