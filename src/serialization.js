@@ -236,9 +236,9 @@ export default class Serializer {
     */
     if (visited) {
       let i = visited.get(value);
-      const repeated = !!i;
+      const repeated = i !== undefined;
       if (!repeated) {
-        i = visited.size + 1;
+        i = visited.size;
         visited.set(value, i);
       }
       if (mode === BINDING_MODE || mode === CIRCULAR_MODE) {

@@ -82,7 +82,7 @@ describe('Sermat', () => {
     });
   });
 
-  xit('with arrays.', () => {
+  it('with arrays.', () => {
     [Sermat, new Sermat()].forEach((sermat) => {
       const array = [];
       let serialized = sermat.serialize(array);
@@ -101,7 +101,7 @@ describe('Sermat', () => {
     });
   });
 
-  xit('with object literals.', () => {
+  it('with object literals.', () => {
     [
       {}, { a: 1 }, { a: 1, b: 'x' }, { a: 1, b: 'x', c: true },
       { a: { b: 1 } }, { a: { b: 1 }, c: { d: 'x' } }, { a: { b: { c: null } } },
@@ -121,7 +121,7 @@ describe('Sermat', () => {
   });
 
   xit('with backtick literals.', () => {
-    const asBackTickLiteral = (text) => `\`${text.replace(/`/g, '``')}\``;
+    const asBackTickLiteral = (text) => `\`${text.replace(/`/g, '\\`')}\``;
     const checkValue = (sermat, serialized, value) => {
       try {
         expect(sermat.materialize(serialized)).toEqual(value);
@@ -157,7 +157,7 @@ describe('Sermat', () => {
     });
   });
 
-  it('with errors.', () => {
+  xit('with errors.', () => {
     ['', ' \n\t', '// comment ', '/* comment */',
       'TRUE', 'False', 'NuLL',
       '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
@@ -171,7 +171,7 @@ describe('Sermat', () => {
     });
   });
 
-  xit('with circular references.', () => {
+  it('with circular references.', () => {
     const obj = {};
     obj.x = obj;
     expect(Sermat.serialize.bind(Sermat, obj)).toThrow();
@@ -179,7 +179,7 @@ describe('Sermat', () => {
     expect(Sermat.serialize(obj, { mode: Sermat.CIRCULAR_MODE })).toBe('$0={x:$0}');
   });
 
-  xit('with repeated objects.', () => {
+  it('with repeated objects.', () => {
     const obj = {};
     expect(Sermat.serialize.bind(Sermat, [obj, obj])).toThrow();
     expect(Sermat.serialize.bind(Sermat, { a: obj, b: obj })).toThrow();
@@ -188,7 +188,7 @@ describe('Sermat', () => {
     expect(Sermat.serialize({ a: obj, b: obj }, { mode: Sermat.REPEAT_MODE })).toBe('{a:{},b:{}}');
   });
 
-  xit('with bindings.', () => {
+  it('with bindings.', () => {
     const obj = { x: 88 };
     let serialized = Sermat.serialize([obj, obj], { mode: Sermat.BINDING_MODE });
     let materialized = Sermat.materialize(serialized);

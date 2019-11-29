@@ -152,8 +152,12 @@ export default class Materializer {
       const token = this.peek();
       if (KEY_REGEXP.test(token)) {
         this.shift();
-        this.shift(':');
-        obj[token[0] === '"' ? eval(token) : token] = this.parseValue();
+        if (this.peek() === ':') {
+          this.shift();
+          obj[token[0] === '"' ? eval(token) : token] = this.parseValue();
+        } else {
+          obj[i++] = this.parseAtom(token);
+        }
       } else {
         obj[i++] = this.parseValue();
       }
