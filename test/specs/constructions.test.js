@@ -1,5 +1,6 @@
-﻿/* eslint-disable max-classes-per-file */
-/* global describe, it, xit, expect, fail */
+﻿/* global describe, it, xit, expect */
+/* eslint-disable no-new-wrappers */
+/* eslint-disable max-classes-per-file */
 import Sermat from '../../src/index';
 
 describe('Sermat constructions', () => {
@@ -15,6 +16,10 @@ describe('Sermat constructions', () => {
       const serialized = Sermat.serialize(obj);
       expect(Sermat.materialize(serialized)).toStrictEqual(obj);
     });
+    // With properties
+    const date = Object.assign(new Date(Date.UTC(1970, 1, 1, 0, 0, 0, 0)), { two: 2 });
+    expect(Sermat.ser(date)).toBe('Date(1970,1,1,0,0,0,0,two:2)');
+    expect(Object.keys(Sermat.sermat(date))).toStrictEqual(['two']);
   });
 
   it('for RegExp.', () => {
@@ -25,15 +30,19 @@ describe('Sermat constructions', () => {
       const serialized = Sermat.serialize(obj);
       expect(Sermat.materialize(serialized)).toStrictEqual(obj);
     });
+    // With properties
+    const re = Object.assign(/\w/i, { one: 1 });
+    expect(Sermat.ser(re)).toBe('RegExp("\\\\w","i",one:1)');
+    expect(Object.keys(Sermat.sermat(re))).toStrictEqual(['one']);
   });
 
   const defsPoint3D = [
-    function Point3D(x, y, z) {
+    () => function Point3D(x, y, z) {
       this.x = +x;
       this.y = +y;
       this.z = +z;
     },
-    class Point3D {
+    () => class Point3D {
       constructor(x, y, z) {
         this.x = +x;
         this.y = +y;
@@ -48,7 +57,8 @@ describe('Sermat constructions', () => {
   ];
 
   it('with custom serializer & materializer.', () => {
-    defsPoint3D.forEach((Point3D) => {
+    defsPoint3D.forEach((typeDef) => {
+      const Point3D = typeDef();
       Point3D.__SERMAT__ = {
         identifier: 'Point3D',
         serializer: (value) => [value.x, value.y, value.z],
@@ -68,7 +78,8 @@ describe('Sermat constructions', () => {
   });
 
   it('with default serializer & materializer.', () => {
-    defsPoint3D.forEach((Point3D) => {
+    defsPoint3D.forEach((typeDef) => {
+      const Point3D = typeDef();
       Point3D.__SERMAT__ = true;
       const sermat = new Sermat();
       sermat.include(Point3D);
@@ -183,34 +194,28 @@ describe('Sermat constructions', () => {
     expect(f2copy.length).toBe(f2.length);
   });
 
-  xit('with objetified native types.', () => {
+  it('with objetified native types.', () => {
     // Boolean
     expect(Sermat.ser(Object(true))).toBe('Boolean(true)');
     expect(Sermat.ser(new Boolean(false))).toBe('Boolean(false)');
-    expect(Sermat.ser(Object.assign(new Boolean(true), {x:1}))).toBe('Boolean(true,x:1)');
+    expect(Sermat.ser(Object.assign(new Boolean(true), { x: 1 }))).toBe('Boolean(true,x:1)');
     // Number
     expect(Sermat.ser(Object(1))).toBe('Number(1)');
     expect(Sermat.ser(new Number(2.3))).toBe('Number(2.3)');
-    expect(Sermat.ser(Object.assign(new Number(45.678), {n:9}))).toBe('Number(45.678,n:9)');
+    expect(Sermat.ser(Object.assign(new Number(45.678), { n: 9 }))).toBe('Number(45.678,n:9)');
     // String
-    expect(Sermat.ser(Object.assign('abc', {d:'f'}))).toBe('String("abc",d:"f")');
-    expect(Sermat.ser(Object.assign('abc', {2.3:4.5}))).toBe('String("abc","2.3":4.5)');
-    expect(Sermat.ser.bind(Object.assign('abc', {4:5}))).toThrow(); // Integer properties are not supported.
+    expect(Sermat.ser(Object.assign('abc', { d: 'f' }))).toBe('String("abc",d:"f")');
+    expect(Sermat.ser(Object.assign('abc', { 2.3: 4.5 }))).toBe('String("abc","2.3":4.5)');
+    expect(Sermat.ser.bind(Object.assign('abc', { 4: 5 }))).toThrow(); // Integer properties are not supported.
     // Arrays
-    expect(Sermat.ser(Object.assign([1,2,3], {array:true}))).toBe('[1,2,3,array:true]');
-    expect(Sermat.ser(Object.assign([1,2,3], {4.5:6.78}))).toBe('[1,2,3,"4.5":6.78]');
-    expect(Sermat.ser(Object.assign([1,2,3], {4:5}), { onUndefined: 4 })).toBe('[1,2,3,4,5]');
-    // Other objects
-    const re = Object.assign(/\w/i, {one:1});
-    expect(Sermat.ser(re)).toBe('RegExp("\\\\w","i",one:1)');
-    expect(Object.keys(Sermat.sermat(re)) +'').toBe('one');
-    const date = Object.assign(new Date(Date.UTC(1970,1,1,0,0,0,0)), {two:2});
-    expect(Sermat.ser(date)).toBe('Date(1970,1,1,0,0,0,0,two:2)');
-    expect(Object.keys(Sermat.sermat(date)) +'').toBe('two');
-    
+    expect(Sermat.ser(Object.assign([1, 2, 3], { array: true }))).toBe('[1,2,3,array:true]');
+    expect(Sermat.ser(Object.assign([1, 2, 3], { 4.5: 6.78 }))).toBe('[1,2,3,"4.5":6.78]');
+    expect(Sermat.ser(Object.assign([1, 2, 3], { 4: 5 }), { onUndefined: 4 })).toBe('[1,2,3,4,5]');
+    // Functions
     const sermat = new Sermat();
     sermat.include('Function');
-    expect(sermat.sermat(Object.assign(function add(x,y) {
+    // eslint-disable-next-line prefer-arrow-callback
+    expect(sermat.sermat(Object.assign(function add(x, y) {
       return x + y;
     }, { yes: true })).yes).toBe(true);
   });
@@ -237,35 +242,29 @@ describe('Sermat constructions', () => {
   });
 
   xit('with clone().', () => {
-    function Point2D(x, y) {
-      this.x = +x;
-      this.y = +y;
-    }
-    Point2D.__SERMAT__ = {};
-    const sermat = new Sermat();
-    sermat.include(Point2D);
-    let value = new Point2D(1, 22);
-    expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
-    value = new Point2D(0, 0);
-    expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
-    value = new Point2D(3, -3);
-    expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+    defsPoint3D.forEach((typeDef) => {
+      const sermat = new Sermat();
+      const Point3D = typeDef();
+      Point3D.__SERMAT__ = {};
+      sermat.include(Point3D);
+      examplesPoint3D(Point3D).forEach((value) => {
+        expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+      });
+    });
   });
 
-  xit('with hashCode().', () => {
-    function Point2D(x, y) {
-      this.x = +x;
-      this.y = +y;
-    }
-    Point2D.__SERMAT__ = {};
-    const sermat = new Sermat();
-    sermat.include(Point2D);
-    let value = new Point2D(1, 22);
-    let hash = sermat.hashCode(value);
-    expect(hash).toBe(hash);
-    hash = sermat.hashCode(value = new Point2D(0, 0));
-    expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
-    hash = sermat.hashCode(value = new Point2D(3, -3));
-    expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
+  it('with hashCode().', () => {
+    defsPoint3D.forEach((typeDef) => {
+      const sermat = new Sermat();
+      const Point3D = typeDef();
+      Point3D.__SERMAT__ = {};
+      sermat.include(Point3D);
+      examplesPoint3D(Point3D).forEach((value) => {
+        const hash1 = sermat.hashCode(value);
+        expect(hash1).toBeOfType('number');
+        const hash2 = sermat.hashCode(sermat.clone(value));
+        expect(hash2).toBe(hash1);
+      });
+    });
   });
 }); // describe "Sermat".

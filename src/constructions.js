@@ -77,26 +77,27 @@ export function construction(type, identifier, serializer, materializer) {
 */
 export const construction_Boolean = construction(Boolean, 'Boolean',
   function serialize_Boolean(obj) {
-    return [!!obj.valueOf()];
+    return Object.assign([!!obj.valueOf()], obj);
   },
   function materialize_Boolean(obj, args) {
-    return args && new Boolean(args.shift());
+    return args && Object.assign(new Boolean(args.shift()), args);
   });
 
 export const construction_Number = construction(Number, 'Number',
   function serialize_Number(obj) {
-    return [+obj.valueOf()];
+    return Object.assign([+obj.valueOf()], obj);
   },
   function materialize_Number(obj, args) {
-    return args && new Number(args.shift());
+    return args && Object.assign(new Number(args.shift()), args);
   });
 
 export const construction_String = construction(String, 'String',
   function serialize_String(obj) {
-    return [`${obj.valueOf()}`];
+    // eslint-disable-next-line prefer-template
+    return Object.assign([obj + ''], obj);
   },
   function materialize_String(obj, args) {
-    return args && new String(args.shift());
+    return args && Object.assign(new String(args.shift()), args);
   });
 
 export const construction_Object = construction(Object, 'Object',
@@ -127,7 +128,7 @@ export const construction_RegExp = construction(RegExp, 'RegExp',
     return Object.assign([comps[1], comps[2]], value);
   },
   function materialize_RegExp(obj, args /* [regexp, flags] */) {
-    return args && new RegExp(`${args.shift()}`, `${args.shift()}`);
+    return args && Object.assign(new RegExp(`${args.shift()}`, `${args.shift()}`), args);
   });
 
 /** + `Date` instances are serialized using its seven UTC numerical components (in this order):
@@ -140,7 +141,10 @@ export const construction_Date = construction(Date, 'Date',
       value.getUTCMilliseconds()], value);
   },
   function materialize_Date(__obj, args) {
-    return args && new Date(Date.UTC(...args));
+    if (!args) return null;
+    const time = Date.UTC(args.shift(), args.shift(), args.shift(), args.shift(), args.shift(),
+      args.shift(), args.shift());
+    return Object.assign(new Date(time), args);
   });
 
 const FUNCTION_RE = /^(function\s*[\w$]*\s*\((?:\s*[$\w]+\s*,?)*\)\s*\{|\(?(?:\s*[$\w]+\s*,?)*\)?\s*=>)/;
@@ -174,20 +178,20 @@ export const construction_Function = construction(Function, 'Function',
 */
 export const construction_Set = construction(Set, 'Set',
   function serialize_Set(value) {
-    return [...value];
+    return Object.assign([...value], value);
   },
   function materialize_Set(obj, args) {
-    return args && new Set(args);
+    return args && Object.assign(new Set(args), args);
   });
 
 /** + `Map` instances are serialized with a list of entries.
 */
 export const construction_Map = construction(Map, 'Map',
   function serialize_Map(value) {
-    return [...value];
+    return Object.assign([...value], value);
   },
   function materialize_Map(obj, args) {
-    return args && new Map(args);
+    return args && Object.assign(new Map(args), args);
   });
 
 /** + Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`, `SyntaxError`, `TypeError`
