@@ -1,8 +1,7 @@
 ﻿/* global describe, it, xit, expect, fail */
-import Sermat from '../../dist/sermat';
+import Sermat from '../../src/index';
 
 describe('Random tests', () => {
-
   // Timing ////////////////////////////////////////////////////////////////////////////////////////
 
   function testTime(cases, f, name) {
@@ -121,7 +120,7 @@ describe('Random tests', () => {
     expect(Sermat.hashCode(clone)).toBe(hashCode); // hashCodes for clones must be equal.
   }
 
-  it('with number.', () => {
+  xit('with number.', () => {
     for (let i = 0; i < 60; i += 1) {
       const testCase = i % 2 ? randomNumber() : randomInt();
       const serialized = Sermat.ser(testCase);
@@ -136,7 +135,7 @@ describe('Random tests', () => {
     }
   });
 
-  it('with strings.', () => {
+  xit('with strings.', () => {
     for (let size = 1; size <= 0x2000; size *= 2) {
       for (let i = 0; i < 30; i += 1) {
         const testCase = randomString(size, 0, 256);
@@ -148,7 +147,7 @@ describe('Random tests', () => {
     }
   });
 
-  it('with tree-like structures.', () => {
+  xit('with tree-like structures.', () => {
     for (let min = 0; min < 4; min += 1) {
       for (let max = min; max < min + 4; max += 1) {
         for (let i = 0; i < 30; i += 1) {
@@ -162,7 +161,7 @@ describe('Random tests', () => {
     }
   });
 
-  it('with DAG-like structures.', () => {
+  xit('with DAG-like structures.', () => {
     let testCount = 0;
     const modes = [
       new Sermat({ mode: Sermat.REPEAT_MODE }),

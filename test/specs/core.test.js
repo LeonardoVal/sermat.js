@@ -1,5 +1,5 @@
 ﻿/* global describe, it, xit, expect, fail */
-import Sermat from '../../dist/sermat';
+import Sermat from '../../src/index';
 
 describe('Sermat', () => {
   it('core definitions.', () => {
@@ -208,24 +208,6 @@ describe('Sermat', () => {
     expect(Array.isArray(materialized)).toBe(true);
     expect(materialized[0]).toBe(materialized[1].a);
     expect(materialized[0]).toBe(materialized[1].b.c);
-  });
-
-  xit('with prototypes.', () => {
-    const obj1 = Object.assign(Object.create({ x: 1 }), { y: 2 });
-    const obj2 = Sermat.sermat(obj1);
-    expect(obj2.x).toBe(1);
-    expect(obj2.y).toBe(2);
-    expect(obj2.hasOwnProperty('x')).toBe(false);
-    expect(obj2.hasOwnProperty('y')).toBe(true);
-    expect(Object.getPrototypeOf(obj2).hasOwnProperty('x')).toBe(true);
-    expect(Object.getPrototypeOf(obj2).constructor).toBe(Object);
-
-    const obj3 = Sermat.mat('[{y:2,__proto__:$0={x:1}},{z:3,__proto__:$0}]');
-    expect(obj3[0].x).toBe(1);
-    expect(obj3[1].x).toBe(1);
-    expect(obj3[0].y).toBe(2);
-    expect(obj3[1].z).toBe(3);
-    expect(Object.getPrototypeOf(obj3[0])).toBe(Object.getPrototypeOf(obj3[1]));
   });
 
   xit('.clone()', () => {

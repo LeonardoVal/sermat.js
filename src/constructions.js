@@ -62,13 +62,13 @@ export function construction(type, identifier, serializer, materializer) {
         return obj;
       }
     }
-    Object.assign(obj, args);
+    Object.assign(obj, args[0]);
     return obj;
   });
   if (typeof materializer !== 'function') {
     throw new TypeError(`Materializer given for type '${identifier}' is not a function!`);
   }
-  return { type, identifier, serializer, materializer };
+  return Object.freeze({ type, identifier, serializer, materializer });
 }
 
 /** All `Boolean`, `Number`, `String`, `Object` and `Array` instances are serialized with their
@@ -143,7 +143,7 @@ export const construction_Date = construction(Date, 'Date',
     return args && new Date(Date.UTC(...args));
   });
 
-const FUNCTION_RE = /^(function\s*[\w$]*\s*\((?:\s*[$\w]+\s*,?)*\)\s*\{[\0-\uFFFF]*\}|\((?:\s*[$\w]+\s*,?)*\)\s*=>\s*[\0-\uFFFF]*)$/;
+const FUNCTION_RE = /^(function\s*[\w$]*\s*\((?:\s*[$\w]+\s*,?)*\)\s*\{|\(?(?:\s*[$\w]+\s*,?)*\)?\s*=>)/;
 
 /** + `Function` is not registered by default, but it is available. Functions are serialized with
   their full source code, in order to support arrow functions and to include the function's name.

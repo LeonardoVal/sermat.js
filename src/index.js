@@ -1,20 +1,14 @@
-/* eslint-disable no-prototype-builtins */
 /** ## Wrap-up #####################################################################################
 
 Here both `Sermat`'s prototype and singleton are set up.
 */
-import {
-  construction,
-  CONSTRUCTIONS,
-} from './constructions';
-import {
-  BASIC_MODE,
-  REPEAT_MODE,
-  BINDING_MODE,
-  CIRCULAR_MODE,
-} from './common';
+import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
+import { construction, CONSTRUCTIONS } from './constructions';
 import Serializer from './serialization';
 import Materializer from './materialization';
+import { clone, hashCode } from './utilities';
+
+const hasOwnProperty = (obj, id) => Object.prototype.hasOwnProperty.call(obj, id);
 
 export default class Sermat {
   static BASIC_MODE = BASIC_MODE;
@@ -31,10 +25,10 @@ export default class Sermat {
     params = params || {};
     Object.defineProperty(this, 'registry', { value: new Map() });
     const modifiers = Object.seal({
-      mode: params.hasOwnProperty('mode') ? params.mode : BASIC_MODE,
-      onUndefined: params.hasOwnProperty('onUndefined') ? params.onUndefined : TypeError,
-      autoInclude: params.hasOwnProperty('autoInclude') ? params.autoInclude : true,
-      useConstructions: params.hasOwnProperty('useConstructions') ? params.useConstructions : true,
+      mode: hasOwnProperty(params, 'mode') ? params.mode : BASIC_MODE,
+      onUndefined: hasOwnProperty(params, 'onUndefined') ? params.onUndefined : TypeError,
+      autoInclude: hasOwnProperty(params, 'autoInclude') ? params.autoInclude : true,
+      useConstructions: hasOwnProperty(params, 'useConstructions') ? params.useConstructions : true,
     });
     Object.defineProperty(this, 'modifiers', { value: modifiers });
     /** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`,
@@ -50,12 +44,13 @@ export default class Sermat {
     if (Array.isArray(type)) {
       return type.map((t) => this.include(t));
     }
-    if (typeof type === 'function') {
-      const cons = Object.freeze(construction({ ...type.__SERMAT__, type }));
+    if (typeof type === 'function' && type.__SERMAT__) {
+      const { identifier, serializer, materializer } = type.__SERMAT__;
+      const cons = construction(type, identifier, serializer, materializer);
       this.registry.set(cons.identifier, cons);
       this.registry.set(type, cons);
-      if (Array.isArray(type.__SERMAT__.include)) {
-        return [...this.include(type.__SERMAT__.include), cons];
+      if (Array.isArray(cons.include)) {
+        return [...this.include(cons.include), cons];
       }
       return cons;
     }

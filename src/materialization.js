@@ -46,7 +46,9 @@ export default class Materializer {
     this.tokens = text.replace(TRIM_PREFIX_REGEXP, '').split(LEXER_REGEXP);
     this.bindings = new Map();
     const value = this.parseValue();
-    this.peek(undefined);
+    if (this.peek() !== undefined) { // Check EOI
+      this.error('Expected end of input');
+    }
     return value;
   }
 
@@ -54,20 +56,19 @@ export default class Materializer {
     throw new SyntaxError(`${msg} at line ${this.lineNum + 1} column ${this.colNum + 1} (offset ${this.offset + 1})!`);
   }
 
-  peek(expected) {
+  peek(n = 0) {
     const { tokens } = this;
-    if (tokens[0] !== '') {
+    if (tokens[n * 2] !== '') {
       this.error();
     }
-    const token = tokens[1];
-    if (expected && token !== expected) {
-      this.error(`Expected '${expected}' but got '${token}'`);
-    }
-    return token;
+    return tokens[n * 2 + 1];
   }
 
   shift(expected) {
-    const token = this.peek(expected);
+    const token = this.peek();
+    if (expected && token !== expected) {
+      this.error(`Expected '${expected}' but got '${token}'`);
+    }
     this.offset += token.length;
     const tokenLines = token.split('\n');
     this.lineNum += tokenLines.length;
@@ -150,14 +151,10 @@ export default class Materializer {
     let i = 0;
     do {
       const token = this.peek();
-      if (KEY_REGEXP.test(token)) {
+      if (KEY_REGEXP.test(token) && this.peek(1) === ':') {
         this.shift();
-        if (this.peek() === ':') {
-          this.shift();
-          obj[token[0] === '"' ? eval(token) : token] = this.parseValue();
-        } else {
-          obj[i++] = this.parseAtom(token);
-        }
+        this.shift(':');
+        obj[token[0] === '"' ? JSON.parse(token) : token] = this.parseValue();
       } else {
         obj[i++] = this.parseValue();
       }
