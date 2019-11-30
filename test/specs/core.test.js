@@ -225,7 +225,7 @@ describe('Sermat', () => {
     ].forEach((v) => expect(Sermat.clone(v)).toEqual(v));
   });
 
-  xit('.hashCode()', () => {
+  it('.hashCode()', () => {
     expect(`${Sermat.clone(NaN)}`).toBe('NaN');
     [
       true, false,

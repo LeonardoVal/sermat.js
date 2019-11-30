@@ -6,8 +6,10 @@
 is like `Sermat.sermat`, but without dealing with text.
 */
 export function clone(value, options) {
-  const { construction, useConstructions } = options;
-  if (!options.visited) options.visited = new Map();
+  const { construction, useConstructions } = options || {};
+  if (!options || !options.visited) {
+    options.visited = new Map();
+  }
   const { visited } = options;
   switch (typeof value) {
     case 'undefined':
@@ -25,12 +27,14 @@ export function clone(value, options) {
       if (isArray || value.constructor === Object || !useConstructions) {
         cloned = isArray ? value.map((v) => clone(v, options)) : {};
         visited.set(value, cloned);
-        Object.keys(value).forEach((k) => { cloned[k] = clone(value[k], options); });
+        Object.keys(value).forEach((k) => {
+          cloned[k] = clone(value[k], options);
+        });
       } else { // Constructions.
         const cons = construction(value.constructor);
         cloned = cons.materializer.call(this, null, null);
         visited.set(value, cloned);
-        const args = clone(cons.serializer.call(this, value));
+        const args = clone(cons.serializer.call(this, value), options);
         cloned = cons.materializer.call(this, cloned, args);
         visited.set(value, cloned); // If the materializer does not support empty initialization.
       }
@@ -45,7 +49,7 @@ export function clone(value, options) {
 the same method in Java objects.
 */
 export function hashCode(value, options) {
-  const { construction, useConstructions } = options;
+  const { construction, useConstructions } = options || {};
   if (!options.visited) options.visited = new Map();
   const { visited } = options;
   switch (typeof value) {
@@ -65,12 +69,12 @@ export function hashCode(value, options) {
       visited.set(value, hash);
       if (Array.isArray(value) || value.constructor === Object || !useConstructions) {
         hash = Object.keys(value)
-          .map((k) => hashCode(k) ^ hashCode(value[k]))
+          .map((k) => hashCode(k, options) ^ hashCode(value[k], options))
           .sort((x, y) => x - y)
           .reduce((acc, x) => (31 * acc + x) | 0, 1);
       } else { // Constructions.
         const record = construction(value.constructor);
-        hash = hashCode(record.serializer.call(this, value));
+        hash = hashCode(record.serializer.call(this, value), options);
       }
       visited.set(value, hash);
       return hash;
