@@ -108,13 +108,27 @@ export default class Sermat {
   sermat(value, modifiers) {
     return this.mat(this.ser(value, modifiers), modifiers);
   }
+
+  clone(value) {
+    return clone.call(this, value, {
+      construction: this.construction.bind(this),
+      useConstructions: this.useConstructions,
+    });
+  }
+
+  hashCode(value) {
+    return hashCode.call(this, value, {
+      construction: this.construction.bind(this),
+      useConstructions: this.useConstructions,
+    });
+  }
 } // class Sermat
 
 const SINGLETON = new Sermat();
 
 Object.defineProperty(Sermat, '__SINGLETON__', { value: SINGLETON });
-[
-  'include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
+['include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
+  'clone', 'hashCode',
 ].forEach((id) => {
   Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });
 });
