@@ -1,4 +1,4 @@
-﻿/* global describe, it, xit, expect */
+﻿/* global describe, it, expect */
 /* eslint-disable no-new-wrappers */
 /* eslint-disable max-classes-per-file */
 import Sermat from '../../src/index';
@@ -171,13 +171,6 @@ describe('Sermat constructions', () => {
     expect(r3.refs[1]).toBe(r3);
   });
 
-  xit('with types.', () => {
-    const sermat1 = new Sermat();
-    expect(sermat1.ser(Object)).toBe('$Object');
-    expect(sermat1.mat('$Number')).toBe(Number);
-    expect(sermat1.sermat(String)).toBe(String);
-  });
-
   it('with functions.', () => {
     const sermat = new Sermat();
     sermat.include('Function');
@@ -198,15 +191,13 @@ describe('Sermat constructions', () => {
     // Boolean
     expect(Sermat.ser(Object(true))).toBe('Boolean(true)');
     expect(Sermat.ser(new Boolean(false))).toBe('Boolean(false)');
-    expect(Sermat.ser(Object.assign(new Boolean(true), { x: 1 }))).toBe('Boolean(true,x:1)');
+    expect(Sermat.ser(Object.assign(new Boolean(true), { x: 1 }))).toBe('Boolean(true)');
     // Number
     expect(Sermat.ser(Object(1))).toBe('Number(1)');
     expect(Sermat.ser(new Number(2.3))).toBe('Number(2.3)');
-    expect(Sermat.ser(Object.assign(new Number(45.678), { n: 9 }))).toBe('Number(45.678,n:9)');
+    expect(Sermat.ser(Object.assign(new Number(45.678), { n: 9 }))).toBe('Number(45.678)');
     // String
-    expect(Sermat.ser(Object.assign('abc', { d: 'f' }))).toBe('String("abc",d:"f")');
-    expect(Sermat.ser(Object.assign('abc', { 2.3: 4.5 }))).toBe('String("abc","2.3":4.5)');
-    expect(Sermat.ser.bind(Object.assign('abc', { 4: 5 }))).toThrow(); // Integer properties are not supported.
+    expect(Sermat.ser(Object.assign('abc', { d: 'f' }))).toBe('String("abc")');
     // Arrays
     expect(Sermat.ser(Object.assign([1, 2, 3], { array: true }))).toBe('[1,2,3,array:true]');
     expect(Sermat.ser(Object.assign([1, 2, 3], { 4.5: 6.78 }))).toBe('[1,2,3,"4.5":6.78]');
@@ -239,32 +230,5 @@ describe('Sermat constructions', () => {
     sermat.include([Type1, Type2]);
     expect(sermat.ser(new Type1(1))).toBe('Type1(1)');
     expect(sermat.ser(new Type2(1))).toBe('Type2(1)');
-  });
-
-  xit('with clone().', () => {
-    defsPoint3D.forEach((typeDef) => {
-      const sermat = new Sermat();
-      const Point3D = typeDef();
-      Point3D.__SERMAT__ = {};
-      sermat.include(Point3D);
-      examplesPoint3D(Point3D).forEach((value) => {
-        expect(sermat.ser(sermat.clone(value))).toBe(sermat.ser(value));
-      });
-    });
-  });
-
-  it('with hashCode().', () => {
-    defsPoint3D.forEach((typeDef) => {
-      const sermat = new Sermat();
-      const Point3D = typeDef();
-      Point3D.__SERMAT__ = {};
-      sermat.include(Point3D);
-      examplesPoint3D(Point3D).forEach((value) => {
-        const hash1 = sermat.hashCode(value);
-        expect(hash1).toBeOfType('number');
-        const hash2 = sermat.hashCode(sermat.clone(value));
-        expect(hash2).toBe(hash1);
-      });
-    });
   });
 }); // describe "Sermat".

@@ -45,8 +45,7 @@ describe('Sermat', () => {
         expect(sermat.serialize(num)).toBe(`${num}`);
         expect(sermat.materialize(`${num}`)).toBe(num);
       }
-      [
-        '1e3', '2e-4', '33e2', '-7e-2', '123.45678e9',
+      ['1e3', '2e-4', '33e2', '-7e-2', '123.45678e9',
         'Infinity', '+Infinity', '-Infinity',
       ].forEach((str) => {
         expect(sermat.materialize(str)).toBe(+str);
@@ -102,8 +101,7 @@ describe('Sermat', () => {
   });
 
   it('with object literals.', () => {
-    [
-      {}, { a: 1 }, { a: 1, b: 'x' }, { a: 1, b: 'x', c: true },
+    [{}, { a: 1 }, { a: 1, b: 'x' }, { a: 1, b: 'x', c: true },
       { a: { b: 1 } }, { a: { b: 1 }, c: { d: 'x' } }, { a: { b: { c: null } } },
       { true1: true }, { NaNa: NaN },
       { 0: 0 }, { 0: 0, 1: 1, 2: 2 }, { 0: 0, 1: 1, a: 'a' },
@@ -129,9 +127,7 @@ describe('Sermat', () => {
         fail(`Materializing (${serialized}) failed with ${err}!`);
       }
     };
-    [
-      '', 'a', 'abcdef',
-      '"', 'a"b',
+    ['', 'a', 'abcdef', '"', 'a"b',
       '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
       '`', '`1', '`1`', '1`1',
     ].forEach((str) => {
@@ -157,9 +153,8 @@ describe('Sermat', () => {
     });
   });
 
-  xit('with errors.', () => {
-    ['', ' \n\t', '// comment ', '/* comment */',
-      'TRUE', 'False', 'NuLL',
+  it('with errors.', () => {
+    ['', ' \n\t', '// comment ', '/* comment */', 'TRUE', 'False', 'NuLL',
       '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
       "'null'", '"a', '"\\"', '"\\u12"',
       '[', ']', '[,1]', '[1,]', '[,]',
@@ -208,38 +203,5 @@ describe('Sermat', () => {
     expect(Array.isArray(materialized)).toBe(true);
     expect(materialized[0]).toBe(materialized[1].a);
     expect(materialized[0]).toBe(materialized[1].b.c);
-  });
-
-  xit('.clone()', () => {
-    expect(`${Sermat.clone(NaN)}`).toBe('NaN');
-    [
-      true, false,
-      0, 1, 2, -1, 0.5, 1e3, 2e-4, 33e2, -7e-2, 123.45678e9, Infinity, -Infinity,
-      '', 'a', 'abcdef', '"', 'a"b',
-      '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
-      [], [1], [1, 2, 3],
-      null, {}, { x: 1 }, { x: 1, y: 2 },
-      [[]], [[], [1], [1, 2]], [{}], [{}, {}], [{ x: [1, 2] }, [{ y: 3 }]],
-      { x: { y: 2 } }, { x: [], y: {} }, { x: { y: [1, 2] }, z: [{ w: 3 }, { w: 4 }] },
-      undefined,
-    ].forEach((v) => expect(Sermat.clone(v)).toEqual(v));
-  });
-
-  it('.hashCode()', () => {
-    expect(`${Sermat.clone(NaN)}`).toBe('NaN');
-    [
-      true, false,
-      0, 1, 2, -1, 0.5, 1e3, 2e-4, 33e2, -7e-2, 123.45678e9, Infinity, -Infinity,
-      '', 'a', 'abcdef', '"', 'a"b',
-      '\\', '\\\\', '\f', '\\f', '\n', '\\n', '\r', '\\r', '\t', '\\t', '\v', '\\v', '\u1234',
-      [], [1], [1, 2, 3],
-      null, {}, { x: 1 }, { x: 1, y: 2 },
-      [[]], [[], [1], [1, 2]], [{}], [{}, {}], [{ x: [1, 2] }, [{ y: 3 }]],
-      { x: { y: 2 } }, { x: [], y: {} }, { x: { y: [1, 2] }, z: [{ w: 3 }, { w: 4 }] },
-      undefined,
-    ].forEach((v) => {
-      const h = Sermat.hashCode(v);
-      expect(Math.floor(h)).toBe(h); // expect h to be an integer.
-    });
   });
 }); // describe "Sermat".
