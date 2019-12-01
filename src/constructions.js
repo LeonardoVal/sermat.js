@@ -77,27 +77,27 @@ export function construction(type, identifier, serializer, materializer) {
 */
 export const construction_Boolean = construction(Boolean, 'Boolean',
   function serialize_Boolean(obj) {
-    return Object.assign([!!obj.valueOf()], obj);
+    return [!!obj.valueOf()];
   },
-  function materialize_Boolean(obj, args) {
-    return args && Object.assign(new Boolean(args.shift()), args);
+  function materialize_Boolean(__obj, args) {
+    return args && new Boolean(args.shift());
   });
 
 export const construction_Number = construction(Number, 'Number',
   function serialize_Number(obj) {
-    return Object.assign([+obj.valueOf()], obj);
+    return [+obj.valueOf()];
   },
-  function materialize_Number(obj, args) {
-    return args && Object.assign(new Number(args.shift()), args);
+  function materialize_Number(__obj, args) {
+    return args && new Number(args.shift());
   });
 
 export const construction_String = construction(String, 'String',
   function serialize_String(obj) {
     // eslint-disable-next-line prefer-template
-    return Object.assign([obj + ''], obj);
+    return [obj.toString()];
   },
   function materialize_String(obj, args) {
-    return args && Object.assign(new String(args.shift()), args);
+    return args && new String(args.shift());
   });
 
 export const construction_Object = construction(Object, 'Object',
