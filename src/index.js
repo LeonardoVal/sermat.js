@@ -1,14 +1,10 @@
-/** ## Wrap-up #####################################################################################
-
-Here both `Sermat`'s prototype and singleton are set up.
-*/
 import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
 import { construction, CONSTRUCTIONS } from './constructions';
 import Serializer from './serialization';
 import Materializer from './materialization';
 import { clone, hashCode } from './utilities';
 
-const hasOwnProperty = (obj, id) => Object.prototype.hasOwnProperty.call(obj, id);
+const SERMAT_SYMBOL = Symbol('__SERMAT__');
 
 export default class Sermat {
   static BASIC_MODE = BASIC_MODE;
@@ -19,50 +15,71 @@ export default class Sermat {
 
   static CIRCULAR_MODE = CIRCULAR_MODE;
 
-  /**
-  */
-  constructor(params) {
-    params = params || {};
-    Object.defineProperty(this, 'registry', { value: new Map() });
-    const modifiers = Object.seal({
-      mode: hasOwnProperty(params, 'mode') ? params.mode : BASIC_MODE,
-      onUndefined: hasOwnProperty(params, 'onUndefined') ? params.onUndefined : TypeError,
-      autoInclude: hasOwnProperty(params, 'autoInclude') ? params.autoInclude : true,
-      useConstructions: hasOwnProperty(params, 'useConstructions') ? params.useConstructions : true,
-    });
-    Object.defineProperty(this, 'modifiers', { value: modifiers });
-    /** The constructors for Javascript's _basic types_ (`Boolean`, `Number`, `String`, `Object`,
-      `Array`, `Set`, `Map`, but not `Function`) are always registered. Also `Date` and `RegExp` are
-      supported by default.
-    */
-    this.include(['Boolean', 'Number', 'String', 'Object', 'Array', 'Date', 'RegExp', 'Set', 'Map']);
+  /** The static method `type` attaches to a type the definitions required for
+   * Sermat to treat it as a construction. It follows the proposed protocol for
+   * class decorators.
+   *
+   * @param {obj} args
+   * @returns {function}
+   */
+  static type(args) {
+    return (Type) => {
+      const cons = construction(args);
+      Type[SERMAT_SYMBOL] = cons;
+      return Type;
+    };
   }
 
   /**
   */
-  include(type) {
-    if (Array.isArray(type)) {
-      return type.map((t) => this.include(t));
-    }
-    if (typeof type === 'function' && type.__SERMAT__) {
-      const { identifier, serializer, materializer } = type.__SERMAT__;
-      const cons = construction(type, identifier, serializer, materializer);
-      this.registry.set(cons.identifier, cons);
-      this.registry.set(type, cons);
-      if (Array.isArray(cons.include)) {
-        return [...this.include(cons.include), cons];
+  constructor(params) {
+    const {
+      mode = BASIC_MODE,
+      onUndefined = TypeError,
+      autoInclude = true,
+      useConstructions = true,
+    } = params || {};
+    const modifiers = Object.seal({
+      mode,
+      onUndefined,
+      autoInclude: !!autoInclude,
+      useConstructions: !!useConstructions,
+    });
+    Object.defineProperty(this, 'modifiers', { value: modifiers });
+    Object.defineProperty(this, 'registry', { value: new Map() });
+    /** The constructors for Javascript's _basic types_ (`Boolean`, `Number`,
+     * `String`, `Object`, `Array`, `Set`, `Map`, but not `Function`) are always
+     * registered. Also `Date` and `RegExp` are supported by default.
+    */
+    this.include(['Boolean', 'Number', 'String', 'Object', 'Array', 'Date',
+      'RegExp', 'Set', 'Map']);
+  }
+
+  /**
+  */
+  include(...types) {
+    for (const type of types) {
+      if (type[SERMAT_SYMBOL]) {
+        if (typeof type === 'function') {
+          const { identifier, serializer, materializer } = type[SERMAT_SYMBOL];
+          const cons = construction({ type, identifier, serializer, materializer });
+          this.registry.set(cons.identifier, cons);
+          this.registry.set(type, cons);
+        }
+        const { include } = type[SERMAT_SYMBOL];
+        if (Array.isArray(include)) {
+          this.include(...include);
+        }
       }
-      return cons;
-    }
-    if (typeof type === 'string') {
-      const cons = CONSTRUCTIONS.get(type);
-      if (cons) {
-        this.registry.set(cons.identifier, cons);
-        this.registry.set(cons.type, cons);
+      if (typeof type === 'string') {
+        const cons = CONSTRUCTIONS.get(type);
+        if (cons) {
+          this.registry.set(cons.identifier, cons);
+          this.registry.set(cons.type, cons);
+        }
       }
-      return cons;
     }
-    return undefined;
+    return this;
   }
 
   /**
