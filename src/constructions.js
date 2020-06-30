@@ -1,61 +1,10 @@
-/* eslint-disable no-new-wrappers */
-/* eslint-disable camelcase */
-/* eslint-disable prefer-arrow-callback */
-/** ## Constructions for Javascript types ##########################################################
-
-One of Sermat's most important features is extensible handling of custom types. But the library
-provides some implementations for some of Javascript's base types.
-*/
-
-/** The `signature` function builds a string representing the types of the arguments (separated by
-comma). For each value it is equal to `typeof value` if is not `'object'`, the empty string (for
-`null`) or the name of the value's constructor.
-
-It can be used to quickly check a call to a materializer using a regular expression.
-* /
-function signature() {
-  var r = "", t, v;
-  for (var i = 0; i < arguments.length; i++) {
-    v = arguments[i];
-    t = typeof v;
-    if (i) {
-      r += ',';
-    }
-    r += t === 'object' ? (v ? identifier(v.constructor) : '') : t;
-  }
-  return r;
+/* eslint-disable no-new-wrappers, camelcase */
+function defaultSerializer(obj) {
+  return [{ ...obj }];
 }
 
-/** The `checkSignature` function checks the types of a call to a materializer using a regular
-  expression to match the result of `signature`. This is a simple and quick way of making the
-  materializer functions more secure.
-* /
-function checkSignature(id, regexp, obj, args) {
-  var types = signature.apply(this, [obj].concat(args));
-  if (!regexp.exec(types)) {
-    throw new TypeError("Sermat.checkSignature: Wrong arguments for construction of "+ id
-      +" ("+ types +")!");
-  }
-  return true;
-}
-
-/** `Sermat.CONSTRUCTIONS` contains the definitions of constructions registered globally. At first
-it includes some implementations for Javascript's base types.
-*/
-
-export function construction(type, identifier, serializer, materializer) {
-  if (typeof type !== 'function') {
-    throw new TypeError(`Expected type '${type}' to be a function!`);
-  }
-  identifier = identifier || type.name;
-  if (!identifier) {
-    throw new Error(`No identifier available for type '${type}'!`);
-  }
-  serializer = serializer || ((obj) => [{ ...obj }]);
-  if (typeof serializer !== 'function') {
-    throw new TypeError(`Serializer given for type '${identifier}' is not a function!`);
-  }
-  materializer = materializer || ((obj, args) => {
+function defaultMaterializer(type) {
+  return function materializer(obj, args) {
     if (!obj) {
       obj = Object.create(type.prototype);
       if (!args) {
@@ -64,96 +13,151 @@ export function construction(type, identifier, serializer, materializer) {
     }
     Object.assign(obj, args[0]);
     return obj;
-  });
+  };
+}
+
+/** Checks if the given construction definition is valid.
+ *
+ * @param {object} cons
+ * @param {function|string} [type]
+ * @returns {object} - Same as `cons`.
+*/
+export function checkConstruction(cons, type) {
+  if (!cons) {
+    throw new TypeError(type ? `Unknown type ${type.name || type}!`
+      : 'Unknown type!');
+  }
+  const { identifier, materializer, serializer } = cons;
+  if (typeof identifier !== 'string') {
+    throw new TypeError(`Invalid identifier for type ${type.name || type}!`);
+  }
+  if (typeof materializer !== 'function') {
+    throw new TypeError(`Invalid materializer for type ${type.name || type}!`);
+  }
+  if (typeof serializer !== 'function') {
+    throw new TypeError(`Invalid serializer for type ${type.name || type}!`);
+  }
+  return cons;
+}
+
+/** A construction is defined by an object with the properties:
+ *
+ * @param {object} args
+ * @param {function} args.type - the constructor function or class of the type.
+ * @param {string} args.identifier - the name used in the syntax.
+ * @param {function} args.serializer - a function that takes an object of the
+ *   given `type` and returns an array of values to use in the syntax.
+ * @param {function} args.materializer - a function that takes an object and the
+ *   arguments for its initialization and returns the materialized object.
+ * @returns {object}
+ */
+export function construction({ type, identifier, serializer, materializer }) {
+  if (typeof type !== 'function') {
+    throw new TypeError(`Expected type '${type}' to be a function!`);
+  }
+  identifier = identifier || type.name;
+  if (!identifier) {
+    throw new Error(`No identifier available for type '${type}'!`);
+  }
+  serializer = serializer || defaultSerializer;
+  if (typeof serializer !== 'function') {
+    throw new TypeError(`Serializer given for type '${identifier}' is not a function!`);
+  }
+  materializer = materializer || defaultMaterializer(type);
   if (typeof materializer !== 'function') {
     throw new TypeError(`Materializer given for type '${identifier}' is not a function!`);
   }
   return Object.freeze({ type, identifier, serializer, materializer });
 }
 
-/** All `Boolean`, `Number`, `String`, `Object` and `Array` instances are serialized with their
-  specific syntax and never as constructions. These are added only for compatibility at
-  materialization.
-*/
-export const construction_Boolean = construction(Boolean, 'Boolean',
-  function serialize_Boolean(obj) {
+const construction_Boolean = construction({
+  type: Boolean,
+  serializer(obj) {
     return [!!obj.valueOf()];
   },
-  function materialize_Boolean(__obj, args) {
-    return args && new Boolean(args.shift());
-  });
+  materializer(__obj, args) {
+    return args && new Boolean(args[0]);
+  },
+});
 
-export const construction_Number = construction(Number, 'Number',
-  function serialize_Number(obj) {
+const construction_Number = construction({
+  type: Number,
+  serializer(obj) {
     return [+obj.valueOf()];
   },
-  function materialize_Number(__obj, args) {
-    return args && new Number(args.shift());
-  });
+  materializer(__obj, args) {
+    return args && new Number(args[0]);
+  },
+});
 
-export const construction_String = construction(String, 'String',
-  function serialize_String(obj) {
-    // eslint-disable-next-line prefer-template
+const construction_String = construction({
+  type: String,
+  serializer(obj) {
     return [obj.toString()];
   },
-  function materialize_String(obj, args) {
-    return args && new String(args.shift());
-  });
+  materializer(obj, args) {
+    return args && new String(args[0]);
+  },
+});
 
-export const construction_Object = construction(Object, 'Object',
-  function serialize_Object() {
+const construction_Object = construction({
+  type: Object,
+  serializer() {
     throw new TypeError('Object literals should not be serialized by a construction!');
   },
-  function materialize_Object(__obj, args) {
+  materializer(__obj, args) {
     return args && Object.call(null, ...args);
-  });
+  },
+});
 
-export const construction_Array = construction(Array, 'Array',
-  function serialize_Array() {
+const construction_Array = construction({
+  type: Array,
+  serializer() {
     throw new TypeError('Arrays should not be serialized by a construction!');
   },
-  function materialize_Array(__obj, args) {
+  materializer(__obj, args) {
     return args;
-  });
+  },
+});
 
-/** + `RegExp` instances are serialized with two arguments: a string for the regular expression and
-  a string for its flags.
-*/
-export const construction_RegExp = construction(RegExp, 'RegExp',
-  function serialize_RegExp(value) {
+const construction_RegExp = construction({
+  type: RegExp,
+  serializer(value) {
     const comps = /^\/(.+?)\/([a-z]*)$/.exec(`${value}`);
     if (!comps) {
       throw new SyntaxError(`Cannot serialize RegExp ${value}!`);
     }
     return Object.assign([comps[1], comps[2]], value);
   },
-  function materialize_RegExp(obj, args /* [regexp, flags] */) {
-    return args && Object.assign(new RegExp(`${args.shift()}`, `${args.shift()}`), args);
-  });
-
-/** + `Date` instances are serialized using its seven UTC numerical components (in this order):
-  year, month, day, hours, minutes, seconds and milliseconds.
-*/
-export const construction_Date = construction(Date, 'Date',
-  function serialize_Date(value) {
-    return Object.assign([value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate(),
-      value.getUTCHours(), value.getUTCMinutes(), value.getUTCSeconds(),
-      value.getUTCMilliseconds()], value);
+  materializer(obj, args /* [regexp, flags] */) {
+    return args && Object.assign(
+      new RegExp(`${args.shift()}`, `${args.shift()}`), args,
+    );
   },
-  function materialize_Date(__obj, args) {
-    if (!args) return null;
-    const time = Date.UTC(args.shift(), args.shift(), args.shift(), args.shift(), args.shift(),
-      args.shift(), args.shift());
+});
+
+const construction_Date = construction({
+  type: Date,
+  serializer(value) {
+    return Object.assign([value.getUTCFullYear(), value.getUTCMonth(),
+      value.getUTCDate(), value.getUTCHours(), value.getUTCMinutes(),
+      value.getUTCSeconds(), value.getUTCMilliseconds()], value);
+  },
+  materializer(__obj, args) {
+    if (!args) {
+      return null;
+    }
+    const time = Date.UTC(args.shift(), args.shift(), args.shift(),
+      args.shift(), args.shift(), args.shift(), args.shift());
     return Object.assign(new Date(time), args);
-  });
+  },
+});
 
 const FUNCTION_RE = /^(function\s*[\w$]*\s*\((?:\s*[$\w]+\s*,?)*\)\s*\{|\(?(?:\s*[$\w]+\s*,?)*\)?\s*=>)/;
 
-/** + `Function` is not registered by default, but it is available. Functions are serialized with
-  their full source code, in order to support arrow functions and to include the function's name.
-*/
-export const construction_Function = construction(Function, 'Function',
-  function serialize_Function(f) {
+const construction_Function = construction({
+  type: Function,
+  serializer(f) {
     const source = `${f}`;
     const comps = FUNCTION_RE.test(source);
     if (!comps) {
@@ -161,7 +165,7 @@ export const construction_Function = construction(Function, 'Function',
     }
     return Object.assign([source], f);
   },
-  function materialize_Function(obj, args) {
+  materializer(_obj, args) {
     if (args) {
       if (!FUNCTION_RE.test(args[0])) {
         throw new SyntaxError(`Invalid source for Function (${args[0]})!`);
@@ -172,34 +176,29 @@ export const construction_Function = construction(Function, 'Function',
     } else {
       return null;
     }
-  });
+  },
+});
 
-/** + `Set` instances are serialized with a list of members.
-*/
-export const construction_Set = construction(Set, 'Set',
-  function serialize_Set(value) {
+const construction_Set = construction({
+  type: Set,
+  serializer(value) {
     return Object.assign([...value], value);
   },
-  function materialize_Set(obj, args) {
+  materializer(obj, args) {
     return args && Object.assign(new Set(args), args);
-  });
+  },
+});
 
-/** + `Map` instances are serialized with a list of entries.
-*/
-export const construction_Map = construction(Map, 'Map',
-  function serialize_Map(value) {
+const construction_Map = construction({
+  type: Map,
+  serializer(value) {
     return Object.assign([...value], value);
   },
-  function materialize_Map(obj, args) {
+  materializer(obj, args) {
     return args && Object.assign(new Map(args), args);
-  });
+  },
+});
 
-/** + Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`, `SyntaxError`, `TypeError`
-  and `URIError`) are not registered by default, but are available. Error instances are serialized
-  with their `name`, `message` and `stack`. The `stack` trace is overriden, since it is
-  initialized by the engine when the instance is created. Other properties are not considered, and
-  may become inconsistent (e.g. Firefox's `fileName` and `lineNumber`).
-*/
 function serialize_Error(obj) {
   const args = [obj.message];
   ['stack', 'fileName', 'lineNumber', 'columnNumber'].forEach((p) => {
@@ -225,27 +224,48 @@ function materializer_Error(Type) {
   };
 }
 
-export const construction_Error = construction(Error, 'Error',
-  serialize_Error, materializer_Error(Error));
+function errorConstruction(errorType) {
+  return construction({
+    type: Error,
+    serializer: serialize_Error,
+    materializer: materializer_Error(errorType),
+  });
+}
 
-export const construction_EvalError = construction(EvalError, 'EvalError',
-  serialize_Error, materializer_Error(EvalError));
+const construction_Error = errorConstruction(Error);
+const construction_EvalError = errorConstruction(EvalError);
+const construction_RangeError = errorConstruction(RangeError);
+const construction_ReferenceError = errorConstruction(ReferenceError);
+const construction_SyntaxError = errorConstruction(SyntaxError);
+const construction_TypeError = errorConstruction(TypeError);
+const construction_URIError = errorConstruction(URIError);
 
-export const construction_RangeError = construction(RangeError, 'RangeError',
-  serialize_Error, materializer_Error(RangeError));
-
-export const construction_ReferenceError = construction(ReferenceError, 'ReferenceError',
-  serialize_Error, materializer_Error(ReferenceError));
-
-export const construction_SyntaxError = construction(SyntaxError, 'SyntaxError',
-  serialize_Error, materializer_Error(SyntaxError));
-
-export const construction_TypeError = construction(TypeError, 'TypeError',
-  serialize_Error, materializer_Error(TypeError));
-
-export const construction_URIError = construction(URIError, 'URIError',
-  serialize_Error, materializer_Error(URIError));
-
+/** `CONSTRUCTIONS` contains the definitions of constructions registered
+ * globally. At first it includes some implementations for Javascript's base
+ * types.
+ *
+ * All `Boolean`, `Number`, `String`, `Object` and `Array` instances are
+ * serialized with their specific syntax and never as constructions. These are
+ * added only for compatibility at materialization.
+ *
+ * `RegExp` instances are serialized with two arguments: a string for the
+ * regular expression and a string for its flags. `Date` instances are
+ * serialized using its seven UTC numerical components (in this order): year,
+ * month, day, hours, minutes, seconds and milliseconds. `Map` and `Set`
+ * instances are serialized with a list of entries.
+ *
+ * `Function` is not registered by default, but it is available. Functions are
+ * serialized with their full source code, in order to support arrow functions
+ * and to include the function's name.
+ *
+ * Error clases (`Error`, `EvalError`, `RangeError`, `ReferenceError`,
+ * `SyntaxError`, `TypeError` and `URIError`) are not registered by default,
+ * but are available. Error instances are serialized with their `name`,
+ * `message` and `stack`. The `stack` trace is overriden, since it is
+ * initialized by the engine when the instance is created. Other properties are
+ * not considered, and may become inconsistent (e.g. Firefox's `fileName` and
+ * `lineNumber`).
+*/
 export const CONSTRUCTIONS = [
   construction_Boolean,
   construction_Number,
@@ -254,9 +274,9 @@ export const CONSTRUCTIONS = [
   construction_Array,
   construction_RegExp,
   construction_Date,
-  construction_Function,
   construction_Set,
   construction_Map,
+  construction_Function,
   construction_Error,
   construction_EvalError,
   construction_RangeError,
