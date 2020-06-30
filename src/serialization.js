@@ -1,39 +1,11 @@
 /* eslint-disable no-unused-vars */
 import {
-  isValidIdentifier,
-  BASIC_MODE,
-  REPEAT_MODE,
-  BINDING_MODE,
-  CIRCULAR_MODE,
+  isValidIdentifier, BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE,
 } from './common';
+import { checkConstruction } from './constructions';
 
-/** ## Serialization ###############################################################################
-
-Serialization is similar to JSON's `stringify` method. The method takes a data structure and
-produces a text representation of it. As a second argument the function takes a set of modifiers of
-the functions behaviour. The most important one is perhaps `mode`.
+/** Serialization is similar to JSON's `stringify` method.
 */
-
-/** Serialization method can be called as `serialize` or `ser`. Besides the `mode`, other modifiers
-of the serialization include:
-
-+ `onUndefined=TypeError`: If it is a constructor for a subtype of `Error`, it is used to throw an
-  exception when an undefined is found. If it is other type function, it is used as a callback.
-  Else the value of this modifier is serialized as in place of the undefined value, and if it is
-  undefined itself the `undefined` string is used.
-
-+ `autoInclude`: If `true` forces the registration of types found during the serialization, but not
-  in the construction registry.
-
-+ `useConstructions=true`: If `false` constructions (i.e. custom serializations) are not used, and
-  all objects are treated as literals (the same way JSON does). It is `true` by default.
-
-+ `climbPrototypes=true`: If `true`, every time an object's constructor is not an own property of
-  its prototype, its prototype will be serialized as the `__proto__` property.
-
-+ `pretty=false`: If `true` the serialization is formatted with whitespace to make it more readable.
-*/
-
 export default class Serializer {
   constructor(params) {
     this.initialize(params);
@@ -59,17 +31,24 @@ export default class Serializer {
     this.pretty = pretty;
   }
 
-  /** */
+  /** Serialize a value, as a generator of strings.
+   *
+   * @param {any} value
+   * @yields {string}
+  */
   * serialize(value) {
-    /* climbPrototypes = _modifier(modifiers, 'climbPrototypes', this.modifiers.climbPrototypes) */
     this.visited = this.mode === REPEAT_MODE ? null : new Map();
     this.parents = new Set();
     yield* this.serializeValue(value);
-    delete this.visited;
-    delete this.parents;
+    this.visited = null;
+    this.parents = null;
   }
 
-  /** */
+  /** Serialize a value, as one single string.
+   *
+   * @param {any} value
+   * @returns {string}
+  */
   serializeToString(value) {
     let result = '';
     if (!this.pretty) {
@@ -105,11 +84,15 @@ export default class Serializer {
     return result;
   }
 
-  /** */
+  /** Serialize any value.
+   *
+   * @param {any} value
+   * @yields {string}
+  */
   * serializeValue(value) {
     switch (typeof value) {
       case 'undefined':
-        yield* this.serializeUndefined(value);
+        yield* this.serializeUndefined();
         break;
       case 'boolean':
         yield this.serializeBoolean(value);
@@ -132,12 +115,16 @@ export default class Serializer {
     }
   }
 
-  /** The `undefined` special value can be handled in many ways, depending on the `onUndefined`
-  modifier. If it is a constructor for a subtype of `Error`, it is used to throw an exception. If
-  it other type function, it is used as a callback. Else the value is serialized as it is, even if
-  it is `undefined` itself.
+  /** The `undefined` special value can be handled in many ways, depending on
+   * the `onUndefined` modifier. If it is a constructor for a subtype of
+   * `Error`, it is used to throw an exception. If it is other type function, it
+   * is used as a callback. Else the value is serialized as it is, even if it is
+   * `undefined` itself.
+   *
+   * @param {any} value
+   * @yields {string}
   */
-  * serializeUndefined(value) {
+  * serializeUndefined() {
     const { onUndefined } = this;
     switch (typeof onUndefined) {
       case 'undefined':
@@ -148,7 +135,8 @@ export default class Serializer {
           // eslint-disable-next-line new-cap
           throw new onUndefined('Cannot serialize undefined value!');
         } else {
-          value = onUndefined.call(null, value); // Use the given function as callback.
+          // Use the given function as callback.
+          const value = onUndefined.call(null, value);
           if (typeof value === 'undefined') {
             yield 'void';
           } else {
@@ -162,30 +150,49 @@ export default class Serializer {
   }
 
   /** The serialization of a boolean value is identical to JSON's.
+   *
+   * @param {boolean} value
+   * @returns {string}
   */
   serializeBoolean(value) {
     return value ? 'true' : 'false';
   }
 
-  /** The serialization of a numeral is the JS standard string conversion. JSON's stringification
-   * is not used, because it does not handle correctly values `Infinity`, `-Infinity` and `NaN`.
+  /** The serialization of a numeral is the JS standard string conversion.
+   * JSON's stringification is not used, because it does not handle correctly
+   * values `Infinity`, `-Infinity` and `NaN`.
+   *
+   * @param {number} value
+   * @returns {string}
   */
   serializeNumber(value) {
     return `${+value}`;
   }
 
   /** The serialization of a string value is identical to JSON's.
+   *
+   * @param {string} value
+   * @returns {string}
   */
   serializeString(value) {
-    return JSON.stringify(value);
+    return JSON.stringify(`${value}`);
   }
 
-  /** */
+  /** Keys are the identifiers used in constructions and object literals.
+   *
+   * @param {string} value
+   * @returns {string}
+  */
   serializeKey(value) {
     return isValidIdentifier(value) ? value : this.serializeString(value);
   }
 
-  /** */
+  /** Serialize the elements of an array or object. In the case of objects it
+   * results in `key:value` pairs.
+   *
+   * @param {object} value
+   * @yields {string}
+  */
   * serializeElements(value) {
     let i = 0;
     const isArray = Array.isArray(value);
@@ -213,14 +220,27 @@ export default class Serializer {
     }
   }
 
-  /** */
+  /** Functions are serialized as object, with the construction `Function`.
+   *
+   * @param {function} value
+   * @yields {string}
+  */
   * serializeFunction(value) {
     yield* this.serializeObject(value);
   }
 
-  /** During object serialization two lists are kept. The `parents` list holds all the ancestors
-  of the current object. This is useful to check for circular references. The `visited` list holds
-  all previously serialized objects, and is used to check for repeated references and bindings.
+  /** Serializes an object, either an array, an object literal or a custom
+   * construction. During object serialization two lists are kept. The `parents`
+   * list holds all the ancestors of the current object. This is useful to check
+   * for circular references. The `visited` list holds all previously serialized
+   * objects, and is used to check for repeated references and bindings.
+   *
+   * @param {object} value
+   * @yields {string}
+   * @throws {TypeError} If a circular reference is detected and the mode is not
+   *   `CIRCULAR_MODE`.
+   * @throws {TypeError} If a repeated reference is detected and the mode is
+   *   neither `BINDING_MODE` nor `CIRCULAR_MODE`.
   */
   * serializeObject(value) {
     if (!value) {
@@ -231,8 +251,8 @@ export default class Serializer {
     if (parents && parents.has(value) && mode !== CIRCULAR_MODE) {
       throw new TypeError('Circular reference detected!');
     }
-    /** If `visited` is `null`, means the mode is `REPEAT_MODE` and repeated references do
-    not have to be checked. This is only an optimization.
+    /** If `visited` is `null`, means the mode is `REPEAT_MODE` and repeated
+     * references do not have to be checked. This is only an optimization.
     */
     if (visited) {
       let i = visited.get(value);
@@ -262,8 +282,11 @@ export default class Serializer {
     parents.delete(value);
   }
 
-  /** An array is serialized as a sequence of values separated by commas between brackets,
-   * as arrays are written in plain Javascript.
+  /** An array is serialized as a sequence of values separated by commas between
+   * brackets, as arrays are written in plain Javascript.
+   *
+   * @param {Array} value
+   * @yields {string}
   */
   * serializeArray(value) {
     yield '[';
@@ -271,9 +294,12 @@ export default class Serializer {
     yield ']';
   }
 
-  /** An object literal is serialized as a sequence of key-value pairs separated by commas
-    between braces. Each pair is joined by a colon. This is the same syntax that
-    Javascript's object literals follow.
+  /** An object literal is serialized as a sequence of key-value pairs separated
+   * by commas between braces. Each pair is joined by a colon. This is the same
+   * syntax that Javascript's object literals follow.
+   *
+   * @param {object} value
+   * @yields {string}
   */
   * serializeObjectLiteral(value) {
     yield '{';
@@ -281,37 +307,39 @@ export default class Serializer {
     yield '}';
   }
 
-  /** Constructions is the term used to custom serializations registered by the user for
-    specific types. They are serialized as an identifier, followed by a sequence of
-    values   separated by commas between parenthesis. It ressembles a call to a function
-    in Javascript.
+  /** Constructions is the term used to custom serializations registered by the
+   * user for specific types. They are serialized as an identifier, followed by
+   * a sequence of values separated by commas between parenthesis. It ressembles
+   * a call to a function in Javascript.
+   *
+   * @param {object} value
+   * @yields {string}
+   * @throws {TypeError} If the construction for the value's type is missing or
+   *   invalid.
   */
   * serializeConstruction(value) {
     const type = value && value.constructor;
-    const cons = this.construction && this.construction(type);
-    if (!cons) {
-      throw new TypeError(`Unknown type "${type.name || type}"!`);
-    }
+    const cons = checkConstruction(this.construction && this.construction(type),
+      type);
     const { identifier, serializer } = cons;
-    if (!identifier || !serializer) {
-      throw new TypeError(`Invalid record for type ${type.name || type}!`);
-    }
     const args = serializer.call(this, value);
     if (Array.isArray(args)) {
       yield this.serializeKey(identifier);
       yield '(';
       yield* this.serializeElements(args);
       yield ')';
-    } else {
-      throw new TypeError(`Serializer for ${identifier} did not return an array but \`${args}\`!`);
+    } else { // TODO String results.
+      throw new TypeError(`Serializer for ${identifier} returned something `
+        + `unexpected: \`${args}\`!`);
     }
   }
 
-  // Utilities /////////////////////////////////////////////////////////////////////////////////////
+  // Utilities /////////////////////////////////////////////////////////////////
 
-  /** `properties` is a generic way of serializing an object, by creating another object with some
-   * of its properties. This method can be used in a serializer function when the constructor of the
-   * type can be called with an object.
+  /** `properties` is a generic way of serializing an object, by creating
+   * another object with some of its properties. This method can be used in a
+   * serializer function when the constructor of the type can be called with an
+   * object.
   */
   properties(obj, ...properties) {
     const result = properties.reduce((props, prop) => {
@@ -319,18 +347,5 @@ export default class Serializer {
       return props;
     }, {});
     return [result];
-  }
-
-  /** `constructorArgs` serializes the `obj` object with a list of properties inferred from the
-   * `constructor`'s formal argument list.
-  */
-  constructorArgs(obj, constructor) {
-    const sourceCode = `${constructor}`;
-    const comps = /^function\s*[\w$]*\s*\(([^)]*)\)\s*\{/.exec(sourceCode)
-      || /^\(([^)]*)\)\s*=>/.exec(sourceCode);
-    if (comps && comps[1]) {
-      return comps[1].split(/\s*,\s*/).map((k) => obj[k]);
-    }
-    throw new TypeError(`Cannot infer a serialization from constructor (${constructor})!`);
   }
 } // class Serializer
