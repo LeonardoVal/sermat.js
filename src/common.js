@@ -1,21 +1,4 @@
-/** TODO
-*/
-/** There are four modes of operation:
-
-+ `BASIC_MODE`: No object inside the given value is allowed to be serialized more than once.
-
-+ `REPEATED_MODE`: If while serializing any object inside the given value is visited more than once,
-  its serialization is repeated every time. Still, circular references are not allowed. This is
-  analoguos to `JSON.stringify`'s behaviour.
-
-+ `BINDING_MODE`: Every object inside the given value is given an identifier. If any one of these
-  is visited twice or more, a reference to the first serialization is generated using this
-  identifier. The materialization actually reuses instances, though circular references are still
-  forbidden.
-
-+ `CIRCULAR_MODE`: Similar to `BINDING_MODE`, except that circular references are allowed. This
-  still depends on the constructions' materializers supporting circular references.
-*/
+/* eslint-disable object-property-newline */
 export const BASIC_MODE = 0;
 export const REPEAT_MODE = 1;
 export const BINDING_MODE = 2;
@@ -33,4 +16,28 @@ const FUNCTION_ID_RE = /^\s*function\s+([\w$]+)/;
 
 export function functionName(fn) {
   return fn.name || (FUNCTION_ID_RE.exec(`${fn}`) || [])[1];
+}
+
+const STRING_LITERAL_ESCAPES = {
+  '\\': '\\', '"': '"', '\'': '\'', '`': '`',
+  b: '\b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v',
+};
+
+export function parseStringLiteral(lit) {
+  return lit.replace(/\\(x[0-9a-fA-F]{0,2}|u[0-9a-fA-F]{0,4}|.)/g, (_, m) => {
+    const escape = m[0];
+    if (escape === 'x') {
+      if (m.length !== 3) {
+        throw new SyntaxError('Invalid hexadecimal escape sequence!');
+      }
+      return String.fromCharCode(parseInt(m.substr(1), 16));
+    }
+    if (escape === 'u') {
+      if (m.length !== 5) {
+        throw new SyntaxError('Invalid Unicode escape sequence!');
+      }
+      return String.fromCharCode(parseInt(m.substr(1), 16));
+    }
+    return STRING_LITERAL_ESCAPES[escape] || escape;
+  });
 }
