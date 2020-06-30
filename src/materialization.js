@@ -1,18 +1,7 @@
-/* eslint-disable no-continue */
-/* eslint-disable no-labels */
-/* eslint-disable no-eval */
-/* eslint-disable no-plusplus */
-/* eslint-disable no-mixed-operators */
-const LEXER_REGEXP = /([[\](){}:,=]|[-+]?[-+\w.$]+|"(?:[^"\\\n]|\\[^\n])*"|`(?:[^`\\]|\\.)*`)(?:\s|\/\*.*?\*\/)*/m;
-const ATOM_REGEXP = /^(?:true|false|null|void|[-+]?(Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|".*|`.*)$/m;
-const ID_REGEXP = /^[a-zA-Z_$](?:[.-]?[a-zA-Z0-9_]+)*$/;
-const KEY_REGEXP = /^(?:[a-zA-Z_](?:[.-]?[a-zA-Z0-9_]+)*|".*)$/;
-const TRIM_PREFIX_REGEXP = /^(?:\s|\/\*.*?\*\/)*/m;
-
-const ATOM_VALUES = new Map([
-  ['true', true], ['false', false], ['null', null], ['void', undefined],
-  ['Infinity', Infinity], ['+Infinity', Infinity], ['-Infinity', -Infinity], ['NaN', NaN],
-]);
+/* eslint-disable default-case */
+import {
+  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE,
+} from './lexer';
 
 export default class Materializer {
   constructor(params) {
@@ -31,6 +20,7 @@ export default class Materializer {
     this.construction = construction;
   }
 
+  /** */
   construct(id, obj, args) {
     const record = this.construction(id);
     if (record) {
@@ -39,143 +29,137 @@ export default class Materializer {
     throw new TypeError(`Cannot materialize type '${id}'!`);
   }
 
+  /** */
   materialize(text) {
-    this.offset = 0;
-    this.lineNum = 0;
-    this.colNum = 0;
-    this.tokens = text.replace(TRIM_PREFIX_REGEXP, '').split(LEXER_REGEXP);
     this.bindings = new Map();
+    this.lexer = new Lexer(text);
     const value = this.parseValue();
-    if (this.peek() !== undefined) { // Check EOI
-      this.error('Expected end of input');
+    if (this.lexer.shift()) { // Check EOI
+      throw new SyntaxError('Expected end of input!');
     }
     return value;
   }
 
-  error(msg = 'Parse error') {
-    throw new SyntaxError(`${msg} at line ${this.lineNum + 1} column ${this.colNum + 1} (offset ${this.offset + 1})!`);
-  }
-
-  peek(n = 0) {
-    const { tokens } = this;
-    if (tokens[n * 2] !== '') {
-      this.error();
-    }
-    return tokens[n * 2 + 1];
-  }
-
-  shift(expected) {
-    const token = this.peek();
-    if (expected && token !== expected) {
-      this.error(`Expected '${expected}' but got '${token}'`);
-    }
-    this.offset += token.length;
-    const tokenLines = token.split('\n');
-    this.lineNum += tokenLines.length;
-    this.colNum += tokenLines[tokenLines.length - 1].length;
-    const { tokens } = this;
-    tokens.shift();
-    tokens.shift();
-    return token;
-  }
-
+  /** */
   parseValue(bindId) {
-    const token = this.shift();
-    if (ATOM_REGEXP.test(token)) {
-      return this.parseAtom(token);
-    }
-    if (token === '[') {
-      return this.parseArray(bindId);
-    }
-    if (token === '{') {
-      return this.parseObject(bindId);
-    }
-    if (ID_REGEXP.test(token)) {
-      if (token[0] === '$') {
-        return this.parseBind(token);
+    const { lexer } = this;
+    const [lex, value] = lexer.shift();
+    switch (lex) {
+      case LEX_ATOM:
+      case LEX_NUMERAL:
+      case LEX_LITERAL:
+      case LEX_TEMPLATE:
+        return value;
+      case '[': return this.parseArray(bindId);
+      case '{': return this.parseObject(bindId);
+      case LEX_BIND: return this.parseBind(value);
+      case LEX_ID: {
+        //FIXME Other constructions.
+        lexer.shift('(');
+        return this.parseConstruction(value, bindId);
       }
-      this.shift('(');
-      return this.parseConstruction(token, bindId);
     }
-    throw new SyntaxError(`Expected value but got '${token}'`);
+    throw new SyntaxError(`Expected value but got '${value}'`);
   }
 
-  parseAtom(token) {
-    if (ATOM_VALUES.has(token)) {
-      return ATOM_VALUES.get(token);
-    }
-    if (token.startsWith('`')) {
-      token = `"${token.slice(1, -1).replace('\n', '\\n').replace('"', '\\"')}"`;
-    }
-    return JSON.parse(token);
-  }
-
+  /** */
   parseArray(bindId) {
+    const { lexer } = this;
     const array = [];
     if (bindId) {
       this.bindings.set(bindId, array);
     }
-    if (this.peek() !== ']') {
+    if (!lexer.peek(']')) {
       this.parseElements(array);
     }
-    this.shift(']');
+    lexer.shift(']');
     return array;
   }
 
+  /** */
   parseObject(bindId) {
+    const { lexer } = this;
     const obj = {};
     if (bindId) {
       this.bindings.set(bindId, obj);
     }
-    if (this.peek() !== '}') {
+    if (!lexer.peek('}')) {
       this.parseElements(obj);
     }
-    this.shift('}');
+    lexer.shift('}');
     return obj;
   }
 
+  /** */
   parseConstruction(cons, bindId) {
+    const { lexer } = this;
     const obj = this.construct(cons, null, null);
     if (bindId) {
       this.bindings.set(bindId, obj);
     }
     const args = [];
-    if (this.peek() !== ')') {
+    if (!lexer.peek(')')) {
       this.parseElements(args);
     }
-    this.shift(')');
+    lexer.shift(')');
     return this.construct(cons, obj, args);
   }
 
-  parseElements(obj) {
+  /** */
+  parseElements(obj) { // FIXME
+    const { lexer } = this;
     let i = 0;
     do {
-      const token = this.peek();
-      if (KEY_REGEXP.test(token) && this.peek(1) === ':') {
-        this.shift();
-        this.shift(':');
-        obj[token[0] === '"' ? JSON.parse(token) : token] = this.parseValue();
+      if (lexer.peek(LEX_ID)) {
+        this.parseIdElement(obj, i);
+      } else if (lexer.peek(LEX_LITERAL)) {
+        this.parseLiteralElement(obj, i);
       } else {
-        obj[i++] = this.parseValue();
+        obj[i] = this.parseValue();
       }
-      if (this.peek() !== ',') {
-        break;
-      } else {
-        this.shift(',');
-      }
-    // eslint-disable-next-line no-constant-condition
-    } while (true);
+      i += 1;
+    } while (lexer.peek(',') && lexer.shift());
+    return obj;
   }
 
+  /** */
+  parseIdElement(obj, i) {
+    const { lexer } = this;
+    const [, value] = lexer.shift(LEX_ID);
+    if (lexer.peek(':')) {
+      lexer.shift(':');
+      obj[value] = this.parseValue();
+    } else if (lexer.peek('(')) {
+      lexer.shift('(');
+      obj[i] = this.parseConstruction(value);
+    } else {
+      throw new SyntaxError(`Unexpected "${value}" at ${this.offset - value.length}!`);
+    }
+  }
+
+  /** */
+  parseLiteralElement(obj, i) {
+    const { lexer } = this;
+    const [, value] = lexer.shift(LEX_LITERAL);
+    if (lexer.peek(':')) {
+      lexer.shift(':');
+      obj[value] = this.parseValue();
+    } else {
+      obj[i] = value;
+    }
+  }
+
+  /** */
   parseBind(id) {
+    const { lexer } = this;
     const { bindings } = this;
-    if (this.peek() !== '=') {
+    if (!lexer.peek('=')) {
       if (bindings.has(id)) {
         return bindings.get(id);
       }
       throw new ReferenceError(`Binding ${id} is not defined!`);
     }
-    this.shift('=');
+    lexer.shift('=');
     if (bindings.has(id)) {
       throw new ReferenceError(`Binding ${id} cannot be reassigned!`);
     }
