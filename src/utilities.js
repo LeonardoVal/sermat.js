@@ -1,16 +1,17 @@
 /* eslint-disable no-bitwise */
-/** ## Utilities ###################################################################################
-*/
 
-/** The `clone` function makes a deep copy of a value, taking advantage of Sermat's definitions. It
-is like `Sermat.sermat`, but without dealing with text.
-*/
+/** The `clone` function makes a deep copy of a value, taking advantage of
+ * Sermat's definitions. It is like `Sermat.sermat`, but without dealing with
+ * intermediate text.
+ *
+ * @param {any} value - The value to clone.
+ * @param {object} options
+ * @returns {any} - The cloned value.
+ */
 export function clone(value, options) {
-  const { construction, useConstructions } = options || {};
-  if (!options || !options.visited) {
-    options.visited = new Map();
-  }
-  const { visited } = options;
+  const {
+    construction, useConstructions, visited = new Map(),
+  } = options || {};
   switch (typeof value) {
     case 'undefined':
     case 'boolean':
@@ -31,11 +32,11 @@ export function clone(value, options) {
           cloned[k] = clone(value[k], options);
         });
       } else { // Constructions.
-        const cons = construction(value.constructor);
-        cloned = cons.materializer.call(this, null, null);
+        const { materializer, serializer } = construction(value.constructor);
+        cloned = materializer.call(this, null, null);
         visited.set(value, cloned);
-        const args = clone(cons.serializer.call(this, value), options);
-        cloned = cons.materializer.call(this, cloned, args);
+        const args = clone(serializer.call(this, value), options);
+        cloned = materializer.call(this, cloned, args);
         visited.set(value, cloned); // If the materializer does not support empty initialization.
       }
       return cloned;
@@ -45,13 +46,17 @@ export function clone(value, options) {
   }
 }
 
-/** The `hashCode` function calculates an integer hash for the given value. It is mostly inspired by
-the same method in Java objects.
+/** The `hashCode` function calculates an integer hash for the given value. It
+ * is mostly inspired by the same method in Java objects.
+ *
+ * @param {any} value - The value to clone.
+ * @param {object} options
+ * @returns {number} - An integer hash value.
 */
 export function hashCode(value, options) {
-  const { construction, useConstructions } = options || {};
-  if (!options.visited) options.visited = new Map();
-  const { visited } = options;
+  const {
+    construction, useConstructions, visited = new Map(),
+  } = options || {};
   switch (typeof value) {
     case 'undefined':
     case 'boolean':
