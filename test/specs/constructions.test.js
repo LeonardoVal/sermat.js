@@ -211,7 +211,7 @@ describe('Sermat constructions', () => {
     }, { yes: true })).yes).toBe(true);
   });
 
-  it('with inherited __SERMAT__.', () => {
+  xit('with inherited __SERMAT__.', () => {
     class Type1 {
       constructor(x) {
         this.x = x;
