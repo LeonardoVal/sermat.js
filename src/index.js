@@ -2,17 +2,36 @@ import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
 import { construction, CONSTRUCTIONS } from './constructions';
 import Serializer from './serialization';
 import Materializer from './materialization';
+import { Lexer } from './lexer';
 import { clone, hashCode } from './utilities';
 
-const SERMAT_SYMBOL = Symbol('__SERMAT__');
+const SERMAT_SYMBOL = '__SERMAT__';
 
 export default class Sermat {
+  /** With `BASIC_MODE` no object inside the given value is allowed to be
+   * serialized more than once.
+   */
   static BASIC_MODE = BASIC_MODE;
 
+
+  /** With `REPEATED_MODE`, any object inside the given value is serialized
+   * regardless if it has visited before. Still, circular references are checked
+   * and not allowed. This is analoguos to `JSON.stringify`'s behaviour.
+   */
   static REPEAT_MODE = REPEAT_MODE;
 
+  /** With `BINDING_MODE`, every object inside the given value is given an
+   * identifier. If any one of these is visited twice or more, a reference to
+   * the first serialization is generated (using this identifier). The
+   * materialization actually reuses instances, though circular references are
+   * still forbidden.
+   */
   static BINDING_MODE = BINDING_MODE;
 
+  /** The `CIRCULAR_MODE` is similar to the `BINDING_MODE`, except that circular
+   * references are allowed. This relies on the constructions' materializers
+   * supporting circular references.
+   */
   static CIRCULAR_MODE = CIRCULAR_MODE;
 
   /** The static method `type` attaches to a type the definitions required for
@@ -51,8 +70,8 @@ export default class Sermat {
      * `String`, `Object`, `Array`, `Set`, `Map`, but not `Function`) are always
      * registered. Also `Date` and `RegExp` are supported by default.
     */
-    this.include(['Boolean', 'Number', 'String', 'Object', 'Array', 'Date',
-      'RegExp', 'Set', 'Map']);
+    this.include('Boolean', 'Number', 'String', 'Object', 'Array', 'Date',
+      'RegExp', 'Set', 'Map');
   }
 
   /**
@@ -62,7 +81,9 @@ export default class Sermat {
       if (type[SERMAT_SYMBOL]) {
         if (typeof type === 'function') {
           const { identifier, serializer, materializer } = type[SERMAT_SYMBOL];
-          const cons = construction({ type, identifier, serializer, materializer });
+          const cons = construction({
+            type, identifier, serializer, materializer,
+          });
           this.registry.set(cons.identifier, cons);
           this.registry.set(type, cons);
         }
@@ -82,27 +103,46 @@ export default class Sermat {
     return this;
   }
 
-  /**
-  */
+  /** Gets a construction definition from the registry.
+   *
+   * @param {string|function} type
+   * @returns {object}
+   */
   construction(type) {
     const cons = this.registry.get(type);
-    if (!cons) {
-      throw new TypeError(`Unknown type "${type.name || type}"!`);
-    }
     return cons;
   }
 
-  /**
+  /** Returns the serialization of the given `value`.
+   *
+   * @param {any} value - The value to serialize
+   * @param {object} [modifiers]
+   * @param {boolean} [autoInclude=false] - If `true` forces the registration of
+   *   types found during the serialization.
+   * @param {any} [onUndefined=TypeError] - If it is a constructor for a subtype
+   *   of `Error`, it is used to throw an exception when an undefined is found.
+   *   If it is other type function, it is used as a callback. Else the value of
+   *   this modifier is serialized as in place of the undefined value, and if it
+   *   is undefined itself the `void` string is used.
+   * @param {boolean} [pretty=false] - If `true` the serialization is formatted
+   *   with whitespace to make it more readable.
+   * @param {boolean} [useConstructions=true] - If `false` constructions (i.e.
+   *   custom serializations) are not used, and all objects are treated as
+   *   literals (the same way JSON does).
   */
   serialize(value, modifiers) {
     const serializer = new Serializer({
       ...this.modifiers,
-      ...modifiers,
       construction: this.construction.bind(this),
+      ...modifiers,
     });
     return serializer.serializeToString(value);
   }
 
+  /** Shortcut for {link Sermat.serialize}.
+   *
+   * @see Sermat.serialize
+  */
   ser(text, modifiers) {
     return this.serialize(text, modifiers);
   }
@@ -118,34 +158,52 @@ export default class Sermat {
     return materializer.materialize(text);
   }
 
+  /** Shortcut for {@link Sermat.materialize}.
+   *
+   * @see Sermat.materialize
+   */
   mat(text, modifiers) {
     return this.materialize(text, modifiers);
   }
 
+  /** Materialize a serialization of the given `value`, effectively cloning it.
+   * For a more efficient way of cloning a value see the {@link Sermat.clone}
+   * method.
+   * 
+   * @param {any} value
+   * @param {object} [modifiers={}]
+   * @returns {any} - Cloned value.
+   */
   sermat(value, modifiers) {
     return this.mat(this.ser(value, modifiers), modifiers);
   }
 
-  clone(value) {
+  clone(value, options) {
+    const { useConstructions } = this.modifiers;
     return clone.call(this, value, {
+      useConstructions,
+      ...options,
       construction: this.construction.bind(this),
-      useConstructions: this.useConstructions,
     });
   }
 
-  hashCode(value) {
+  hashCode(value, options) {
+    const { useConstructions } = this.modifiers;
     return hashCode.call(this, value, {
+      useConstructions,
+      ...options,
       construction: this.construction.bind(this),
-      useConstructions: this.useConstructions,
     });
   }
 } // class Sermat
 
 const SINGLETON = new Sermat();
 
-Object.defineProperty(Sermat, '__SINGLETON__', { value: SINGLETON });
+Object.defineProperty(Sermat, 'default', { value: SINGLETON });
 ['include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
   'clone', 'hashCode',
 ].forEach((id) => {
   Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });
 });
+
+export { CONSTRUCTIONS, Lexer, Materializer, Serializer, Sermat };
