@@ -1,13 +1,15 @@
 import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
 import { construction, CONSTRUCTIONS } from './constructions';
-import Serializer from './serialization';
+import { Serializer } from './serialization';
 import Materializer from './materialization';
-import { Lexer } from './lexer';
 import { clone, hashCode } from './utilities';
 
 const SERMAT_SYMBOL = '__SERMAT__';
 
-export default class Sermat {
+/** The main class that handles serialization, materialization and other
+ * functionality.
+ */
+export class Sermat {
   /** With `BASIC_MODE` no object inside the given value is allowed to be
    * serialized more than once.
    */
@@ -49,7 +51,7 @@ export default class Sermat {
     };
   }
 
-  /**
+  /** TODO
   */
   constructor(params) {
     const {
@@ -104,7 +106,6 @@ export default class Sermat {
   }
 
   /** Gets a construction definition from the registry.
-   *
    * @param {string|function} type
    * @returns {object}
    */
@@ -169,7 +170,7 @@ export default class Sermat {
   /** Materialize a serialization of the given `value`, effectively cloning it.
    * For a more efficient way of cloning a value see the {@link Sermat.clone}
    * method.
-   * 
+   *
    * @param {any} value
    * @param {object} [modifiers={}]
    * @returns {any} - Cloned value.
@@ -195,15 +196,49 @@ export default class Sermat {
       construction: this.construction.bind(this),
     });
   }
+
+  // Singleton methods
+
+  static include(...args) {
+    return SINGLETON.include(...args);
+  }
+
+  static construction(...args) {
+    return SINGLETON.construction(...args);
+  }
+
+  static serialize(...args) {
+    return SINGLETON.serialize(...args);
+  }
+
+  static ser(...args) {
+    return SINGLETON.ser(...args);
+  }
+
+  static materialize(...args) {
+    return SINGLETON.materialize(...args);
+  }
+
+  static mat(...args) {
+    return SINGLETON.mat(...args);
+  }
+
+  static sermat(...args) {
+    return SINGLETON.sermat(...args);
+  }
+
+  static clone(...args) {
+    return SINGLETON.clone(...args);
+  }
+
+  static hashCode(...args) {
+    return SINGLETON.hashCode(...args);
+  }
 } // class Sermat
 
 const SINGLETON = new Sermat();
 
-Object.defineProperty(Sermat, 'default', { value: SINGLETON });
-['include', 'construction', 'serialize', 'ser', 'materialize', 'mat', 'sermat',
-  'clone', 'hashCode',
-].forEach((id) => {
-  Object.defineProperty(Sermat, id, { value: SINGLETON[id].bind(SINGLETON) });
-});
-
-export { CONSTRUCTIONS, Lexer, Materializer, Serializer, Sermat };
+export { CONSTRUCTIONS } from './constructions';
+export { Lexer } from './lexer';
+export { default as Materializer } from './materialization';
+export { Serializer } from './serialization';
