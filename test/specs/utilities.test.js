@@ -1,6 +1,6 @@
 ﻿/* eslint-disable max-classes-per-file */
 /* global describe, it, xit, expect */
-import Sermat from '../../src/index';
+import { Sermat } from '../../src/index';
 
 describe('Sermat utilities', () => {
   it('basics with clone()', () => {
@@ -56,7 +56,7 @@ describe('Sermat utilities', () => {
     new Point3D(52),
   ];
 
-  xit('constructions with clone().', () => {
+  it('constructions with clone().', () => {
     defsPoint3D.forEach((typeDef) => {
       const sermat = new Sermat();
       const Point3D = typeDef();

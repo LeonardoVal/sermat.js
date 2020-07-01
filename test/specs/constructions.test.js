@@ -1,7 +1,7 @@
 ﻿/* global describe, it, expect */
 /* eslint-disable no-new-wrappers */
 /* eslint-disable max-classes-per-file */
-import Sermat from '../../src/index';
+import { Sermat } from '../../src/index';
 
 describe('Sermat constructions', () => {
   it('for Date.', () => {
@@ -211,7 +211,7 @@ describe('Sermat constructions', () => {
     }, { yes: true })).yes).toBe(true);
   });
 
-  xit('with inherited __SERMAT__.', () => {
+  it('with inherited __SERMAT__.', () => {
     class Type1 {
       constructor(x) {
         this.x = x;
@@ -227,7 +227,7 @@ describe('Sermat constructions', () => {
     }
 
     const sermat = new Sermat();
-    sermat.include([Type1, Type2]);
+    sermat.include(Type1, Type2);
     expect(sermat.ser(new Type1(1))).toBe('Type1(1)');
     expect(sermat.ser(new Type2(1))).toBe('Type2(1)');
   });

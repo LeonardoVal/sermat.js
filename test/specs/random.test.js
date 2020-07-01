@@ -1,5 +1,5 @@
 ﻿/* global describe, it, xit, expect, fail */
-import Sermat from '../../src/index';
+import { Sermat } from '../../src/index';
 
 describe('Random tests', () => {
   // Timing ////////////////////////////////////////////////////////////////////////////////////////
