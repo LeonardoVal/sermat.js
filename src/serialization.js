@@ -1,12 +1,10 @@
 /* eslint-disable no-unused-vars */
-import {
-  isValidIdentifier, BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE,
-} from './common';
+import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
 import { checkConstruction } from './constructions';
 
 /** Serialization is similar to JSON's `stringify` method.
 */
-export default class Serializer {
+export class Serializer {
   constructor(params) {
     this.initialize(params);
   }
@@ -92,7 +90,7 @@ export default class Serializer {
   * serializeValue(value) {
     switch (typeof value) {
       case 'undefined':
-        yield* this.serializeUndefined();
+        yield* this.serializeUndefined(value);
         break;
       case 'boolean':
         yield this.serializeBoolean(value);
@@ -124,7 +122,7 @@ export default class Serializer {
    * @param {any} value
    * @yields {string}
   */
-  * serializeUndefined() {
+  * serializeUndefined(value) {
     const { onUndefined } = this;
     switch (typeof onUndefined) {
       case 'undefined':
@@ -136,7 +134,7 @@ export default class Serializer {
           throw new onUndefined('Cannot serialize undefined value!');
         } else {
           // Use the given function as callback.
-          const value = onUndefined.call(null, value);
+          value = onUndefined.call(null, value);
           if (typeof value === 'undefined') {
             yield 'void';
           } else {
@@ -328,7 +326,7 @@ export default class Serializer {
       yield '(';
       yield* this.serializeElements(args);
       yield ')';
-    } else { // TODO String results.
+    } else { //TODO String results.
       throw new TypeError(`Serializer for ${identifier} returned something `
         + `unexpected: \`${args}\`!`);
     }
@@ -349,3 +347,11 @@ export default class Serializer {
     return [result];
   }
 } // class Serializer
+
+const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(?:[.-][a-zA-Z0-9_]+)*$/;
+
+const RESERVED_WORD_RE = /^(true|false|null|void|NaN|Infinity|\$[\w$]*)$/;
+
+export function isValidIdentifier(id) {
+  return IDENTIFIER_RE.test(id) && !RESERVED_WORD_RE.test(id);
+}
