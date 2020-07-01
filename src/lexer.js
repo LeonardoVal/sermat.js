@@ -1,5 +1,3 @@
-import { parseStringLiteral } from './common';
-
 export const LEX_ATOM = 'atom';
 export const LEX_ID = 'id';
 export const LEX_BIND = 'bind';
@@ -19,7 +17,7 @@ const LEXEMES = [
   // Numerals.
   /[-+]?(?:Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
   // String literals.
-  /"(?:[^"\\\n\r]|\\[^\n\rxu])*"/,
+  /"(?:[^"\\\n\r]|\\[^\n\r])*"/,
   // Template literals.
   /`(?:[^`\\]|\\.)*`/,
 ];
@@ -68,10 +66,10 @@ export class Lexer {
       return [LEX_NUMERAL, +match[0], match.index];
     }
     if (match[6]) {
-      return [LEX_LITERAL, JSON.parse(match[0]), match.index]; //FIXME
+      return [LEX_LITERAL, parseLiteral(match[0]), match.index];
     }
     if (match[7]) {
-      return [LEX_TEMPLATE, parseStringLiteral(match[0]), match.index]; //FIXME
+      return [LEX_TEMPLATE, parseLiteral(match[0]), match.index];
     }
     throw new SyntaxError(`Unexpected token ${match[0]} at ${match.index}!`);
   }
@@ -126,4 +124,44 @@ export class Lexer {
       token = this.shift();
     }
   }
+} // class Lexer
+
+const LITERAL_ESCAPES = {
+  '\\': '\\',
+  '"': '"',
+  '\'': '\'',
+  '`': '`',
+  b: '\b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+};
+
+export function parseLiteral(lit) {
+  const first = lit[0];
+  const last = lit[lit.length - 1];
+  if (first !== last || (first !== '"' && first !== '`')) {
+    throw new SyntaxError(`Invalid literal (${lit})!`);
+  }
+  const content = lit.substr(1, lit.length - 2);
+  return content.replace(/\\(x[0-9a-fA-F]{0,2}|u[0-9a-fA-F]{0,4}|.)/g, (_, match) => {
+    const [escape] = match;
+    switch (escape) {
+      case 'x': {
+        if (match.length !== 3) {
+          throw new SyntaxError(`Invalid hexadecimal escape sequence '${match}'!`);
+        }
+        return String.fromCharCode(parseInt(match.substr(1), 16));
+      }
+      case 'u': {
+        if (match.length !== 5) {
+          throw new SyntaxError(`Invalid Unicode escape sequence '${match}'!`);
+        }
+        return String.fromCharCode(parseInt(match.substr(1), 16));
+      }
+      default: return LITERAL_ESCAPES[escape] || escape;
+    }
+  });
 }
