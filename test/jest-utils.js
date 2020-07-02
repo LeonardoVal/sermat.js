@@ -2,6 +2,9 @@
 export function addMatchers(expect) {
   expect.extend({
     toSerializeAs(received, text, sermat, modifiers) {
+      if (!sermat) {
+        throw new Error('No Sermat instance given!');
+      }
       let serialization;
       try {
         serialization = sermat.serialize(received, modifiers);
@@ -24,6 +27,9 @@ export function addMatchers(expect) {
     },
 
     toMaterializeAs(received, value, sermat, modifiers) {
+      if (!sermat) {
+        throw new Error('No Sermat instance given!');
+      }
       let materialization;
       try {
         materialization = sermat.materialize(received, modifiers);
