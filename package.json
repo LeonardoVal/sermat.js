@@ -28,7 +28,7 @@
     "@creatartis/creatartis-build": "^0.0.1"
   },
   "scripts": {
-    "test": "grunt test"
+    "test": "gulp test"
   },
   "babel": {
     "presets": [
