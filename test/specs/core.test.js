@@ -1,5 +1,4 @@
-﻿/* eslint-disable quote-props */
-/* global describe, it, expect, fail */
+﻿/* global describe, it, expect, fail */
 import { Sermat } from '../../src/index';
 import { addMatchers } from '../jest-utils';
 
@@ -76,6 +75,7 @@ describe('Sermat', () => {
         '\r': '"\\r"',
         '\t': '"\\t"',
         '\v': '"\\v"',
+        // eslint-disable-next-line quote-props
         '\u1234': '"\\u1234"',
       }).forEach(([text, literal]) => {
         expect(literal).toMaterializeAs(text, sermat);
@@ -95,20 +95,32 @@ describe('Sermat', () => {
         array.push(value);
         serialized = sermat.ser(array);
         expect(serialized).toMaterializeAs(array, sermat);
+        // Superflous ending commas.
+        expect(serialized.replace(']', ',]')).toMaterializeAs(array, sermat);
       });
     });
   });
 
   it('with object literals.', () => {
-    [
-      {}, { a: 1 }, { a: 1, b: 'x' }, { a: 1, b: 'x', c: true },
-      { a: { b: 1 } }, { a: { b: 1 }, c: { d: 'x' } }, { a: { b: { c: null } } },
-      { true1: true }, { NaNa: NaN },
-      { 0: 0 }, { 0: 0, 1: 1, 2: 2 }, { 0: 0, 1: 1, a: 'a' },
-    ].forEach((obj) => {
-      [Sermat, new Sermat()].forEach((sermat) => {
-        const serialized = sermat.ser(obj);
+    [Sermat, new Sermat()].forEach((sermat) => {
+      let serialized = sermat.ser({});
+      expect(serialized).toMaterializeAs({}, sermat);
+      [
+        { a: 1 },
+        { a: 1, b: 'x' },
+        { a: 1, b: 'x', c: true },
+        { a: { b: 1 } },
+        { a: { b: 1 }, c: { d: 'x' } },
+        { a: { b: { c: null } } },
+        { true1: true },
+        { NaNa: NaN },
+        { 0: 0 },
+        { 0: 0, 1: 1, 2: 2 },
+        { 0: 0, 1: 1, a: 'a' },
+      ].forEach((obj) => {
+        serialized = sermat.ser(obj);
         expect(serialized).toMaterializeAs(obj, sermat);
+        expect(serialized.replace('}', ',}')).toMaterializeAs(obj, sermat);
       });
     });
   });
@@ -128,6 +140,7 @@ describe('Sermat', () => {
         '\r': '`\\r`',
         '\t': '`\\t`',
         '\v': '`\\v`',
+        // eslint-disable-next-line quote-props
         '\u1234': '`\\u1234`',
         '`': '`\\``',
         '1`1': '`1\\`1`',
@@ -143,7 +156,7 @@ describe('Sermat', () => {
       expect('1 /* comment */').toMaterializeAs(1, sermat);
       expect('/* comment */ true').toMaterializeAs(true, sermat);
       expect('/* [ */ null /* ] */').toMaterializeAs(null, sermat);
-      expect('[1 /*, 2 */, 3]').toMaterializeAs([1,3], sermat);
+      expect('[1 /*, 2 */, 3]').toMaterializeAs([1, 3], sermat);
     });
   });
 
@@ -151,8 +164,8 @@ describe('Sermat', () => {
     ['', ' \n\t', '// comment ', '/* comment */', 'TRUE', 'False', 'NuLL',
       '- 1', '1 2', '1 e+2', '+.1', '1.', '-e-1', '1e+',
       "'null'", '"a', '"\\"', '"\\u12"',
-      '[', ']', '[,1]', '[1,]', '[,]',
-      '{', '}', '{,a:1}', '{a:1,}', '{,}', '{a:,1}', '{a,:1}', '{a::1}', '{:a:1}', '{a:1:}',
+      '[', ']', '[,1]', '[,]',
+      '{', '}', '{,a:1}', '{,}', '{a:,1}', '{a,:1}', '{a::1}', '{:a:1}', '{a:1:}',
     ].forEach((wrongInput) => {
       [Sermat, new Sermat()].forEach((sermat) => {
         try {
@@ -178,8 +191,10 @@ describe('Sermat', () => {
     expect(Sermat.ser.bind(Sermat, [obj, obj])).toThrow();
     expect(Sermat.ser.bind(Sermat, { a: obj, b: obj })).toThrow();
 
-    expect(Sermat.ser([obj, obj], { mode: Sermat.REPEAT_MODE })).toBe('[{},{}]');
-    expect(Sermat.ser({ a: obj, b: obj }, { mode: Sermat.REPEAT_MODE })).toBe('{a:{},b:{}}');
+    expect(Sermat.ser([obj, obj], { mode: Sermat.REPEAT_MODE }))
+      .toBe('[{},{}]');
+    expect(Sermat.ser({ a: obj, b: obj }, { mode: Sermat.REPEAT_MODE }))
+      .toBe('{a:{},b:{}}');
   });
 
   it('with bindings.', () => {
@@ -197,7 +212,10 @@ describe('Sermat', () => {
     materialized.a.x = 93;
     expect(materialized.b.x).toBe(93);
 
-    serialized = Sermat.ser([obj, { a: obj, b: { c: obj } }], { mode: Sermat.BINDING_MODE });
+    serialized = Sermat.ser(
+      [obj, { a: obj, b: { c: obj } }],
+      { mode: Sermat.BINDING_MODE },
+    );
     materialized = Sermat.mat(serialized);
     expect(Array.isArray(materialized)).toBe(true);
     expect(materialized[0]).toBe(materialized[1].a);

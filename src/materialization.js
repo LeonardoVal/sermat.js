@@ -64,52 +64,43 @@ export default class Materializer {
 
   /** */
   parseArray(bindId) {
-    const { lexer } = this;
     const array = [];
     if (bindId) {
       this.bindings.set(bindId, array);
     }
-    if (!lexer.peek(']')) {
-      this.parseElements(array);
-    }
-    lexer.shift(']');
+    this.parseElements(array, ']');
     return array;
   }
 
   /** */
   parseObject(bindId) {
-    const { lexer } = this;
     const obj = {};
     if (bindId) {
       this.bindings.set(bindId, obj);
     }
-    if (!lexer.peek('}')) {
-      this.parseElements(obj);
-    }
-    lexer.shift('}');
+    this.parseElements(obj, '}');
     return obj;
   }
 
   /** */
   parseConstruction(cons, bindId) {
-    const { lexer } = this;
     const obj = this.construct(cons, null, null);
     if (bindId) {
       this.bindings.set(bindId, obj);
     }
     const args = [];
-    if (!lexer.peek(')')) {
-      this.parseElements(args);
-    }
-    lexer.shift(')');
+    this.parseElements(args, ')');
     return this.construct(cons, obj, args);
   }
 
   /** */
-  parseElements(obj) { // FIXME
+  parseElements(obj, end) {
     const { lexer } = this;
     let i = 0;
     do {
+      if (lexer.peek(end)) {
+        break;
+      }
       if (lexer.peek(LEX_ID)) {
         this.parseIdElement(obj, i);
       } else if (lexer.peek(LEX_LITERAL)) {
@@ -118,7 +109,8 @@ export default class Materializer {
         obj[i] = this.parseValue();
       }
       i += 1;
-    } while (lexer.peek(',') && lexer.shift());
+    } while (lexer.peek(',') && lexer.shift(','));
+    lexer.shift(end);
     return obj;
   }
 
