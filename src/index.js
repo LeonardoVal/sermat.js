@@ -6,6 +6,12 @@ import { clone, hashCode } from './utilities';
 
 const SERMAT_SYMBOL = '__SERMAT__';
 
+const DEFAULT_INCLUDES = [
+  'Boolean', 'Number', 'String', 'Object', 'Array',
+  'Date', 'RegExp', 'Set', 'Map',
+  'JSON',
+];
+
 /** The main class that handles serialization, materialization and other
  * functionality.
  */
@@ -14,7 +20,6 @@ export class Sermat {
    * serialized more than once.
    */
   static BASIC_MODE = BASIC_MODE;
-
 
   /** With `REPEATED_MODE`, any object inside the given value is serialized
    * regardless if it has visited before. Still, circular references are checked
@@ -55,9 +60,10 @@ export class Sermat {
   */
   constructor(params) {
     const {
+      autoInclude = true,
+      include = null,
       mode = BASIC_MODE,
       onUndefined = TypeError,
-      autoInclude = true,
       useConstructions = true,
     } = params || {};
     const modifiers = Object.seal({
@@ -69,11 +75,10 @@ export class Sermat {
     Object.defineProperty(this, 'modifiers', { value: modifiers });
     Object.defineProperty(this, 'registry', { value: new Map() });
     /** The constructors for Javascript's _basic types_ (`Boolean`, `Number`,
-     * `String`, `Object`, `Array`, `Set`, `Map`, but not `Function`) are always
-     * registered. Also `Date` and `RegExp` are supported by default.
+     * `String`, `Object`, `Array`, `Set`, `Map`, `Date`, `RegExp` but not
+     * `Function`) are registered by default.
     */
-    this.include('Boolean', 'Number', 'String', 'Object', 'Array', 'Date',
-      'RegExp', 'Set', 'Map');
+    this.include(...(include || DEFAULT_INCLUDES));
   }
 
   /**
