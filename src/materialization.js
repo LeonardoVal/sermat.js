@@ -54,9 +54,12 @@ export default class Materializer {
       case '{': return this.parseObject(bindId);
       case LEX_BIND: return this.parseBind(value);
       case LEX_ID: {
-        //FIXME Other constructions.
-        lexer.shift('(');
-        return this.parseConstruction(value, bindId);
+        if (lexer.peek('(')) {
+          lexer.shift('(');
+          return this.parseConstruction(value, bindId);
+        }
+        const [, text] = lexer.shift(LEX_TEMPLATE);
+        return this.construct(value, null, text);
       }
     }
     throw new SyntaxError(`Expected value but got '${value}'`);

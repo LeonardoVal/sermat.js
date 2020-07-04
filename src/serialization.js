@@ -170,10 +170,15 @@ export class Serializer {
   /** The serialization of a string value is identical to JSON's.
    *
    * @param {string} value
+   * @param {bool} asTemplate
    * @returns {string}
   */
-  serializeString(value) {
-    return JSON.stringify(`${value}`);
+  serializeString(value, asTemplate = false) {
+    const string = `${value}`;
+    if (asTemplate) {
+      return `\`${string.replace(/[\\`]/g, '\\$&')}\``;
+    }
+    return JSON.stringify(string);
   }
 
   /** Keys are the identifiers used in constructions and object literals.
@@ -317,8 +322,9 @@ export class Serializer {
   */
   * serializeConstruction(value) {
     const type = value && value.constructor;
-    const cons = checkConstruction(this.construction && this.construction(type),
-      type);
+    const cons = checkConstruction(
+      this.construction && this.construction(type), type,
+    );
     const { identifier, serializer } = cons;
     const args = serializer.call(this, value);
     if (Array.isArray(args)) {
@@ -326,7 +332,10 @@ export class Serializer {
       yield '(';
       yield* this.serializeElements(args);
       yield ')';
-    } else { //TODO String results.
+    } else if (typeof args === 'string') {
+      yield this.serializeKey(identifier);
+      yield this.serializeString(args, true);
+    } else {
       throw new TypeError(`Serializer for ${identifier} returned something `
         + `unexpected: \`${args}\`!`);
     }
