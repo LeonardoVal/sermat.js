@@ -240,6 +240,19 @@ const construction_SyntaxError = errorConstruction(SyntaxError);
 const construction_TypeError = errorConstruction(TypeError);
 const construction_URIError = errorConstruction(URIError);
 
+class SerializeAsJSON {
+  constructor(value) {
+    this.value = value;
+  }
+}
+
+const construction_JSON = construction({
+  type: SerializeAsJSON,
+  identifier: 'JSON',
+  serializer: ({ value }) => JSON.stringify(value),
+  materializer: (_obj, text) => JSON.parse(text),
+});
+
 /** `CONSTRUCTIONS` contains the definitions of constructions registered
  * globally. At first it includes some implementations for Javascript's base
  * types.
@@ -284,6 +297,7 @@ export const CONSTRUCTIONS = [
   construction_SyntaxError,
   construction_TypeError,
   construction_URIError,
+  construction_JSON,
 ].reduce((map, cons) => {
   map.set(cons.type, cons);
   map.set(cons.identifier, cons);
