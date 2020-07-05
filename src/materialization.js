@@ -1,6 +1,6 @@
 /* eslint-disable default-case */
 import {
-  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE,
+  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE, LEX_BIGINT,
 } from './lexer';
 
 export default class Materializer {
@@ -49,6 +49,7 @@ export default class Materializer {
       case LEX_NUMERAL:
       case LEX_LITERAL:
       case LEX_TEMPLATE:
+      case LEX_BIGINT:
         return value;
       case '[': return this.parseArray(bindId);
       case '{': return this.parseObject(bindId);

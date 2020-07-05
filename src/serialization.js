@@ -98,6 +98,9 @@ export class Serializer {
       case 'number':
         yield this.serializeNumber(value);
         break;
+      case 'bigint':
+        yield this.serializeBigInt(value);
+        break;
       case 'string':
         yield this.serializeString(value);
         break;
@@ -165,6 +168,12 @@ export class Serializer {
   */
   serializeNumber(value) {
     return `${+value}`;
+  }
+
+  /** The serialization of a `BigInt` is the JS standard string conversion.
+  */
+  serializeBigInt(value) {
+    return `${value}n`;
   }
 
   /** The serialization of a string value is identical to JSON's.

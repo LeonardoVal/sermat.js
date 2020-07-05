@@ -1,7 +1,9 @@
+/* eslint-disable no-undef */
 export const LEX_ATOM = 'atom';
 export const LEX_ID = 'id';
 export const LEX_BIND = 'bind';
 export const LEX_NUMERAL = 'numeral';
+export const LEX_BIGINT = 'bigint';
 export const LEX_LITERAL = 'literal';
 export const LEX_TEMPLATE = 'template';
 
@@ -15,7 +17,7 @@ const LEXEMES = [
   // Identifiers for bindings.
   /\$[a-zA-Z0-9_]*(?:[.-][a-zA-Z0-9_]+)*/,
   // Numerals.
-  /[-+]?(?:Infinity|NaN|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
+  /[-+]?(?:Infinity|NaN|\d+(?:n|(?:\.\d+)?(?:[eE][+-]?\d+)?))/,
   // String literals.
   /"(?:[^"\\\n\r]|\\[^\n\r])*"/,
   // Template literals.
@@ -50,28 +52,33 @@ export class Lexer {
     if (!match) {
       return null;
     }
-    if (ATOMS.has(match[0])) {
-      return [LEX_ATOM, ATOMS.get(match[0]), match.index];
+    const [m0] = match;
+    const { index } = match;
+    if (ATOMS.has(m0)) {
+      return [LEX_ATOM, ATOMS.get(m0), index];
     }
     if (match[2]) { // SYMBOL
-      return [match[2], match[0], match.index];
+      return [match[2], m0, index];
     }
     if (match[3]) {
-      return [LEX_ID, match[0], match.index];
+      return [LEX_ID, m0, index];
     }
     if (match[4]) {
-      return [LEX_BIND, match[0], match.index];
+      return [LEX_BIND, m0, index];
     }
     if (match[5]) {
-      return [LEX_NUMERAL, +match[0], match.index];
+      if (m0.endsWith('n')) {
+        return [LEX_BIGINT, BigInt(m0.substr(0, m0.length - 1)), index];
+      }
+      return [LEX_NUMERAL, +m0, index];
     }
     if (match[6]) {
-      return [LEX_LITERAL, parseLiteral(match[0]), match.index];
+      return [LEX_LITERAL, parseLiteral(m0), index];
     }
     if (match[7]) {
-      return [LEX_TEMPLATE, parseLiteral(match[0]), match.index];
+      return [LEX_TEMPLATE, parseLiteral(m0), index];
     }
-    throw new SyntaxError(`Unexpected token ${match[0]} at ${match.index}!`);
+    throw new SyntaxError(`Unexpected token ${m0} at ${index}!`);
   }
 
   nextToken() {
