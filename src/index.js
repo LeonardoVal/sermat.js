@@ -6,11 +6,8 @@ import { clone, hashCode } from './utilities';
 
 const SERMAT_SYMBOL = '__SERMAT__';
 
-const DEFAULT_INCLUDES = [
-  'Boolean', 'Number', 'String', 'Object', 'Array',
-  'Date', 'RegExp', 'Set', 'Map',
-  'JSON',
-];
+const DEFAULT_INCLUDES = [...CONSTRUCTIONS.keys()]
+  .filter((key) => typeof key === 'string' && key !== 'Function');
 
 /** The main class that handles serialization, materialization and other
  * functionality.
