@@ -1,9 +1,11 @@
 ﻿/* global describe, it, expect */
-/* eslint-disable no-new-wrappers */
-/* eslint-disable max-classes-per-file */
+/* eslint-disable no-new-wrappers, max-classes-per-file */
 import { Sermat } from '../../src/index';
+import { addMatchers } from '../jest-utils';
 
 describe('Sermat constructions', () => {
+  addMatchers(expect);
+
   it('for Date.', () => {
     [new Date(),
       new Date(Date.UTC(2000, 1)),
@@ -14,11 +16,11 @@ describe('Sermat constructions', () => {
       new Date(Date.UTC(2000, 1, 2, 3, 4, 5, 6.7)),
     ].forEach((obj) => {
       const serialized = Sermat.serialize(obj);
-      expect(Sermat.materialize(serialized)).toStrictEqual(obj);
+      expect(serialized).toMaterializeAs(obj, Sermat);
     });
     // With properties
     const date = Object.assign(new Date(Date.UTC(1970, 1, 1, 0, 0, 0, 0)), { two: 2 });
-    expect(Sermat.ser(date)).toBe('Date(1970,1,1,0,0,0,0,two:2)');
+    expect(date).toSerializeAs('Date(1970,1,1,0,0,0,0,two:2)', Sermat);
     expect(Object.keys(Sermat.sermat(date))).toStrictEqual(['two']);
   });
 
@@ -28,11 +30,11 @@ describe('Sermat constructions', () => {
       /(\/.\/)+/img,
     ].forEach((obj) => {
       const serialized = Sermat.serialize(obj);
-      expect(Sermat.materialize(serialized)).toStrictEqual(obj);
+      expect(serialized).toMaterializeAs(obj, Sermat);
     });
     // With properties
     const re = Object.assign(/\w/i, { one: 1 });
-    expect(Sermat.ser(re)).toBe('RegExp("\\\\w","i",one:1)');
+    expect(re).toSerializeAs('RegExp("\\\\w","i",one:1)', Sermat);
     expect(Object.keys(Sermat.sermat(re))).toStrictEqual(['one']);
   });
 
@@ -189,19 +191,27 @@ describe('Sermat constructions', () => {
 
   it('with objetified native types.', () => {
     // Boolean
-    expect(Sermat.ser(Object(true))).toBe('Boolean(true)');
-    expect(Sermat.ser(new Boolean(false))).toBe('Boolean(false)');
-    expect(Sermat.ser(Object.assign(new Boolean(true), { x: 1 }))).toBe('Boolean(true)');
+    expect(Object(true))
+      .toSerializeAs('Boolean(true)', Sermat);
+    expect(new Boolean(false))
+      .toSerializeAs('Boolean(false)', Sermat);
+    expect(Object.assign(new Boolean(true), { x: 1 }))
+      .toSerializeAs('Boolean(true)', Sermat);
     // Number
-    expect(Sermat.ser(Object(1))).toBe('Number(1)');
-    expect(Sermat.ser(new Number(2.3))).toBe('Number(2.3)');
-    expect(Sermat.ser(Object.assign(new Number(45.678), { n: 9 }))).toBe('Number(45.678)');
+    expect(Object(1)).toSerializeAs('Number(1)', Sermat);
+    expect(new Number(2.3)).toSerializeAs('Number(2.3)', Sermat);
+    expect(Object.assign(new Number(45.678), { n: 9 }))
+      .toSerializeAs('Number(45.678)', Sermat);
     // String
-    expect(Sermat.ser(Object.assign('abc', { d: 'f' }))).toBe('String("abc")');
+    expect(Object.assign('abc', { d: 'f' }))
+      .toSerializeAs('String("abc")', Sermat);
     // Arrays
-    expect(Sermat.ser(Object.assign([1, 2, 3], { array: true }))).toBe('[1,2,3,array:true]');
-    expect(Sermat.ser(Object.assign([1, 2, 3], { 4.5: 6.78 }))).toBe('[1,2,3,"4.5":6.78]');
-    expect(Sermat.ser(Object.assign([1, 2, 3], { 4: 5 }), { onUndefined: 4 })).toBe('[1,2,3,4,5]');
+    expect(Object.assign([1, 2, 3], { array: true }))
+      .toSerializeAs('[1,2,3,array:true]', Sermat);
+    expect(Object.assign([1, 2, 3], { 4.5: 6.78 }))
+      .toSerializeAs('[1,2,3,"4.5":6.78]', Sermat);
+    expect(Object.assign([1, 2, 3], { 4: 5 }))
+      .toSerializeAs('[1,2,3,4,5]', Sermat, { onUndefined: 4 });
     // Functions
     const sermat = new Sermat();
     sermat.include('Function');
@@ -228,7 +238,7 @@ describe('Sermat constructions', () => {
 
     const sermat = new Sermat();
     sermat.include(Type1, Type2);
-    expect(sermat.ser(new Type1(1))).toBe('Type1(1)');
-    expect(sermat.ser(new Type2(1))).toBe('Type2(1)');
+    expect(new Type1(1)).toSerializeAs('Type1(1)', sermat);
+    expect(new Type2(1)).toSerializeAs('Type2(1)', sermat);
   });
 }); // describe "Sermat".
