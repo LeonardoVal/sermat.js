@@ -1,7 +1,7 @@
 import { BASIC_MODE, REPEAT_MODE, BINDING_MODE, CIRCULAR_MODE } from './common';
 import { construction, CONSTRUCTIONS } from './constructions';
 import { Serializer } from './serialization';
-import Materializer from './materialization';
+import { Materializer } from './materialization';
 import { clone, hashCode } from './utilities';
 
 const SERMAT_SYMBOL = '__SERMAT__';
@@ -242,5 +242,5 @@ const SINGLETON = new Sermat();
 
 export { CONSTRUCTIONS } from './constructions';
 export { Lexer } from './lexer';
-export { default as Materializer } from './materialization';
+export { Materializer } from './materialization';
 export { Serializer } from './serialization';

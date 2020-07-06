@@ -1,9 +1,12 @@
-/* eslint-disable default-case */
+/* eslint-disable default-case, import/prefer-default-export */
 import {
-  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE, LEX_BIGINT,
+  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE,
+  LEX_BIGINT,
 } from './lexer';
 
-export default class Materializer {
+/** Materialization is similar to JSON's `parse` method.
+*/
+export class Materializer {
   constructor(params) {
     this.initialize(params);
   }
@@ -20,7 +23,13 @@ export default class Materializer {
     this.construction = construction;
   }
 
-  /** */
+  /** Executes the materializer for the given `id`.
+   *
+   * @param {string} id
+   * @param {object} obj
+   * @param {Array|string} args
+   * @returns {object}
+  */
   construct(id, obj, args) {
     const record = this.construction(id);
     if (record) {
@@ -29,7 +38,11 @@ export default class Materializer {
     throw new TypeError(`Cannot materialize type '${id}'!`);
   }
 
-  /** */
+  /** Parses the given `text` and returns the resulting value.
+   *
+   * @param {string} text
+   * @returns {any}
+  */
   materialize(text) {
     this.bindings = new Map();
     this.lexer = new Lexer(text);
@@ -40,7 +53,11 @@ export default class Materializer {
     return value;
   }
 
-  /** */
+  /** Parse a value read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
   parseValue(bindId) {
     const { lexer } = this;
     const [lex, value] = lexer.shift();
@@ -66,7 +83,11 @@ export default class Materializer {
     throw new SyntaxError(`Expected value but got '${value}'`);
   }
 
-  /** */
+  /** Parse an array read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
   parseArray(bindId) {
     const array = [];
     if (bindId) {
@@ -76,7 +97,11 @@ export default class Materializer {
     return array;
   }
 
-  /** */
+  /** Parse an object literal read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
   parseObject(bindId) {
     const obj = {};
     if (bindId) {
@@ -86,7 +111,12 @@ export default class Materializer {
     return obj;
   }
 
-  /** */
+  /** Parse a construction read from the lexer.
+   *
+   * @param {string} cons - Construction's identifier.
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
   parseConstruction(cons, bindId) {
     const obj = this.construct(cons, null, null);
     if (bindId) {
@@ -97,7 +127,13 @@ export default class Materializer {
     return this.construct(cons, obj, args);
   }
 
-  /** */
+  /** Parse elements for arrays, object literals or construction arguments; read
+   * from the lexer.
+   *
+   * @param {object} obj - Object to add the elements to.
+   * @param {string} end - Token that should end the elements list.
+   * @returns {any}
+  */
   parseElements(obj, end) {
     const { lexer } = this;
     let i = 0;
