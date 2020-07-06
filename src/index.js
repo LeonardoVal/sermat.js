@@ -181,6 +181,14 @@ export class Sermat {
     return this.mat(this.ser(value, modifiers), modifiers);
   }
 
+  /** The `clone` function makes a deep copy of a value, taking advantage of
+   * Sermat's definitions. It is like `Sermat.sermat`, but without dealing with
+   * intermediate text.
+   *
+   * @param {any} value - The value to clone.
+   * @param {object} options
+   * @returns {any} - The cloned value.
+   */
   clone(value, options) {
     const { useConstructions } = this.modifiers;
     return clone.call(this, value, {
@@ -190,6 +198,13 @@ export class Sermat {
     });
   }
 
+  /** The `hashCode` function calculates an integer hash for the given value. It
+   * is mostly inspired by the same method in Java objects.
+   *
+   * @param {any} value - The value to clone.
+   * @param {object} options
+   * @returns {number} - An integer hash value.
+  */
   hashCode(value, options) {
     const { useConstructions } = this.modifiers;
     return hashCode.call(this, value, {
