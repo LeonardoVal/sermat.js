@@ -25,6 +25,7 @@
   ],
   "dependencies": {},
   "devDependencies": {
+    "@babel/plugin-syntax-bigint": "^7.8.3",
     "@creatartis/creatartis-build": "^0.0.1"
   },
   "scripts": {
@@ -42,7 +43,8 @@
       ]
     ],
     "plugins": [
-      "@babel/plugin-proposal-class-properties"
+      "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-syntax-bigint"
     ]
   },
   "eslintConfig": {
