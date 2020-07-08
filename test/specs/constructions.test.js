@@ -38,6 +38,21 @@ describe('Sermat constructions', () => {
     expect(Object.keys(Sermat.sermat(re))).toStrictEqual(['one']);
   });
 
+  it('for typed arrays.', () => {
+    const arrays = [[], [0], [-1, 0, 2]];
+    [Float32Array, Float64Array,
+      Int16Array, Int32Array,
+      Int8Array, Uint16Array,
+      Uint32Array, Uint8Array, Uint8ClampedArray,
+    ].forEach((ArrayType) => {
+      arrays.forEach((array) => {
+        const typedArray = new ArrayType(array);
+        const serialized = Sermat.serialize(typedArray);
+        expect(serialized).toMaterializeAs(typedArray, Sermat);
+      });
+    });
+  });
+
   const defsPoint3D = [
     () => function Point3D(x, y, z) {
       this.x = +x;
