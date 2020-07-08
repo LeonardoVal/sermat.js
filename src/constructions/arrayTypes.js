@@ -7,7 +7,7 @@ function serialize_TypedArray(array) {
 
 function materializer_TypedArray(ArrayType) {
   return function materialize_Error(_obj, args) {
-    return ArrayType(args.map((arg) => +arg));
+    return args && new ArrayType(args.map((arg) => +arg));
   };
 }
 
