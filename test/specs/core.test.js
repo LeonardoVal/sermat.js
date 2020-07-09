@@ -47,6 +47,7 @@ describe('Sermat', () => {
       [
         0, 1, -1, 0.5, 123, 123.4, -123, -123.4,
         NaN, Infinity, -Infinity,
+        12345678901234567890n, -12345678901234567890n,
       ].forEach((num) => {
         checkSermat(num, `${num}`, sermat);
       });
