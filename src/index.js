@@ -116,6 +116,25 @@ export class Sermat {
     return cons;
   }
 
+  /** Removes the construction for one or more types from the registry.
+   * 
+   * @param {...string|class} types
+   * @returns {object[]}
+  */
+  exclude(...types) {
+    const removed = [];
+    const { registry } = this;
+    for (const type of types) {
+      const entry = registry.get(type);
+      if (entry) {
+        removed.push(entry);
+        registry.delete(entry.type);
+        registry.delete(entry.identifier);
+      }
+    }
+    return removed;
+  }
+
   /** Returns the serialization of the given `value`.
    *
    * @param {any} value - The value to serialize
