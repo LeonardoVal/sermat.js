@@ -1,3 +1,12 @@
+const succeeds = (f) => {
+  try {
+    f();
+    return true;
+  } catch {
+    return false;
+  }
+}; 
+
 // eslint-disable-next-line import/prefer-default-export
 export function addMatchers(expect) {
   expect.extend({
@@ -14,15 +23,11 @@ export function addMatchers(expect) {
           pass: false,
         };
       }
-      if (serialization === text) {
-        return {
-          message: () => `expected (${received}) not to serialize as ${JSON.stringify(text)}`,
-          pass: true,
-        };
-      }
+      const pass = serialization === text;
       return {
-        message: () => `expected (${received}) to serialize as ${JSON.stringify(text)}`,
-        pass: false,
+        pass,
+        message: () => `expected (${received}) ${pass ? 'not' : ''} to serialize`
+          + ` as ${JSON.stringify(text)} ${pass ? '' : ` but got ${serialization}`}`,
       };
     },
 
@@ -39,15 +44,11 @@ export function addMatchers(expect) {
           pass: false,
         };
       }
-      let pass = true;
-      try {
-        expect(materialization).toStrictEqual(value);
-      } catch {
-        pass = false;
-      }
+      const pass = succeeds(() => expect(materialization).toStrictEqual(value));
       return {
         pass,
-        message: () => `expected "${received}" ${pass ? 'not' : ''} to materialize as ${value}`,
+        message: () => `expected "${received}" ${pass ? 'not' : ''} to `
+          + `materialize as ${value} ${pass ? '' : ` but got ${materialization}`}`,
       };
     },
   });
