@@ -25,8 +25,7 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "@babel/plugin-syntax-bigint": "^7.8.3",
-    "@creatartis/creatartis-build": "^0.0.1"
+    "@creatartis/creatartis-build": "^0.1.0"
   },
   "scripts": {
     "test": "gulp test"
