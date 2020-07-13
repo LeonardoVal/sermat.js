@@ -1,8 +1,8 @@
 ﻿# Auto detect text files and perform LF normalization
 * text=auto
-*.js text eol=crlf
-*.md text eol=crlf
-*.json text eol=crlf
+*.js text eol=lf
+*.md text eol=lf
+*.json text eol=lf
 
 # Custom for Visual Studio
 *.cs     diff=csharp

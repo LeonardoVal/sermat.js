@@ -1,33 +1,93 @@
 {
-	"name": "sermat",
-	"description": "Sermat is a serialization format, similar to JSON.",
-	"keywords": [
-		"data format",
-		"marshalling",
-		"serialization"
-	],
-	"version": "0.0.10",
-	"author": {
-		"name": "Leonardo Val",
-		"email": "leonardo.val@creatartis.com"
-	},
-	"homepage": "http://creatartis.com",
-	"contributors": [],
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "http://github.com/LeonardoVal/sermat.js"
-	},
-	"main": "build/sermat-node-min.js",
-	"files": [
-		"build",
-		"LICENSE.md"
-	],
-	"dependencies": {},
-	"devDependencies": {
-		"@creatartis/creatartis-grunt": "0.0.16-beta"
-	},
-	"scripts": {
-		"test": "grunt test"
-	}
+  "name": "sermat",
+  "description": "Sermat is a serialization format, similar to JSON.",
+  "keywords": [
+    "data format",
+    "marshalling",
+    "serialization"
+  ],
+  "version": "0.1.0",
+  "author": {
+    "name": "Leonardo Val",
+    "email": "leonardo.val@creatartis.com"
+  },
+  "homepage": "http://creatartis.com",
+  "contributors": [],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/LeonardoVal/sermat.js"
+  },
+  "main": "dist/sermat.js",
+  "files": [
+    "dist",
+    "LICENSE.md"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@creatartis/creatartis-build": "^0.1.0"
+  },
+  "scripts": {
+    "build": "gulp default",
+    "test": "gulp test",
+    "publish:verdaccio": "npm run build && npm publish --registry http://localhost:4873",
+    "republish:verdaccio": "npm unpublish --registry http://localhost:4873 --force && npm run publish:verdaccio"
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ],
+    "plugins": [
+      "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-syntax-bigint"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es6": true
+    },
+    "extends": [
+      "airbnb-base"
+    ],
+    "globals": {},
+    "parser": "babel-eslint",
+    "parserOptions": {
+      "ecmaVersion": 2018
+    },
+    "rules": {
+      "no-useless-constructor": 0,
+      "class-methods-use-this": 0,
+      "no-underscore-dangle": 0,
+      "no-param-reassign": 0,
+      "no-restricted-syntax": 0,
+      "no-use-before-define": 0,
+      "guard-for-in": 0,
+      "object-curly-newline": 0
+    }
+  },
+  "eslintIgnore": [
+    "dist/**/*.js"
+  ],
+  "jest": {
+    "setupFilesAfterEnv": [
+      "./node_modules/@creatartis/creatartis-build/dist/jest-setup.js"
+    ],
+    "testPathIgnorePatterns": [
+      "node_modules/",
+      "src/",
+      "dist/"
+    ],
+    "transform": {
+      "\\.jsx?$": "babel-jest"
+    },
+    "verbose": true
+  }
 }

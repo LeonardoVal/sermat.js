@@ -1,263 +1,202 @@
-/** ## Materialization #############################################################################
+/* eslint-disable default-case, import/prefer-default-export */
+import {
+  Lexer, LEX_ATOM, LEX_BIND, LEX_ID, LEX_LITERAL, LEX_NUMERAL, LEX_TEMPLATE,
+  LEX_BIGINT,
+} from './lexer';
 
-The `materialize` method is similar to JSON's `parse` method. It takes text and parses it to produce
-the data structure it represents.
+/** Materialization is similar to JSON's `parse` method.
 */
+export class Materializer {
+  constructor(params) {
+    this.initialize(params);
+  }
 
-/** The `construct` method seeks for a materializer for the given identifier and calls it.
-*/
-function construct(id, obj, args) {
-	var record = this.record(id);
-	if (record) {
-		return record.materializer.call(this, obj, args);
-	} else {
-		throw new SyntaxError("Sermat.construct: Cannot materialize type '"+ id +"'");
-	}
-}
+  /** */
+  initialize({
+    useConstructions = true,
+    construction,
+  }) {
+    if (!construction && useConstructions) {
+      throw new TypeError('No construction registry given!');
+    }
+    this.useConstructions = useConstructions;
+    this.construction = construction;
+  }
 
-var RE_IGNORABLES = /(?:\s|\/\*(?:[^*]*|\n|\*+[^\/])*\*+\/)*/,
-	RE_NUM = /[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]Infinity/,
-	RE_STR = /\"(?:[^\\\"\r\n]|\\[^\r\n])*\"/,
-	RE_STR2 = /(?:`(?:[^`]|[\r\n])*`)+/,
-	RE_CONS = /(?:true|false|null|undefined|Infinity|NaN)\b/,
-	RE_ID = /[a-zA-Z_]+(?:[.-]?[a-zA-Z0-9_])*/,
-	RE_BIND = /\$(?:[.-]?[a-zA-Z0-9_])*/,
-	RE_SYMBOLS = /[,:[\]{}()=]/,
-	RE_EOL = /\r\n?|\n/g,
-	LEXER = new RegExp('^'+ RE_IGNORABLES.source +'(?:'+
-		'('+ RE_NUM.source 
-		+')|('+ RE_STR.source
-		+')|('+ RE_STR2.source
-		+')|('+ RE_CONS.source
-		+')|('+ RE_ID.source
-		+')|('+ RE_BIND.source
-		+')|('+ RE_SYMBOLS.source 
-		+')|$)'),
-	LEX_EOI = 0,
-	LEX_NUM = 1,
-	LEX_STR = 2,
-	LEX_STR2 = 3,
-	LEX_CONS = 4,
-	LEX_ID = 5,
-	LEX_BIND = 6,
-	// SYMBOLS
-	LEX_COMMA    = 7,
-	LEX_COLON    = 8,
-	LEX_OBRACKET = 9,
-	LEX_CBRACKET = 10,
-	LEX_OBRACE   = 11,
-	LEX_CBRACE   = 12,
-	LEX_OPAREN   = 13,
-	LEX_CPAREN   = 14,
-	LEX_EQUAL    = 15;
-	
-function materialize(source, modifiers) {
-	var input = source,
-		offset = 0,
-		token = -1, text = '',
-		bindings = modifiers && modifiers.bindings || {},
-		sermat = this;
+  /** Executes the materializer for the given `id`.
+   *
+   * @param {string} id
+   * @param {object} obj
+   * @param {Array|string} args
+   * @returns {object}
+  */
+  construct(id, obj, args) {
+    const record = this.construction(id);
+    if (record) {
+      return record.materializer.call(this, obj, args);
+    }
+    throw new TypeError(`Cannot materialize type '${id}'!`);
+  }
 
-	function nextToken() {
-		var tokens, len, i, chr;
-		if (tokens = LEXER.exec(input)) {
-			//console.log(tokens);//LOG Uncomment for debugging.
-			len = tokens[0].length;
-			input = input.substr(len);
-			offset += len;
-			text = '';
-			for (i = 1, len = tokens.length - 1; i < len; i++) {
-				if (tokens[i]) {
-					text = tokens[i];
-					return token = i;
-				}
-			} 
-			text = tokens[i];
-			token = ',:[]{}()='.indexOf(text);
-			return token = token < 0 ? LEX_EOI : token + LEX_COMMA;
-		}
-		error('Invalid character "'+ input.charAt(0) +'"');
-	}
-	
-	function error(msg) {
-		msg = msg || "Parse error";
-		offset -= text.length;
-		var line = 0, lineStart = 0;
-		source.substr(0, offset).replace(RE_EOL, function (match, pos) {
-			lineStart = pos + match.length;
-			line++;
-			return '';
-		});
-		throw new SyntaxError("Sermat.mat: "+ msg +" at line "+ (line + 1) +" column "+ 
-			(offset - lineStart) +" (offset "+ (offset + 1) +")!");
-	}
+  /** Parses the given `text` and returns the resulting value.
+   *
+   * @param {string} text
+   * @returns {any}
+  */
+  materialize(text) {
+    this.bindings = new Map();
+    this.lexer = new Lexer(text);
+    const value = this.parseValue();
+    if (this.lexer.shift()) { // Check EOI
+      throw new SyntaxError('Expected end of input!');
+    }
+    return value;
+  }
 
-	function shift(expected) {
-		if (token !== expected) {
-			error("Parse error. Expected <"+ expected +"> but got <"+ (text || token) +">");
-		}
-		nextToken();
-	}
+  /** Parse a value read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
+  parseValue(bindId) {
+    const { lexer } = this;
+    const [lex, value] = lexer.shift();
+    switch (lex) {
+      case LEX_ATOM:
+      case LEX_NUMERAL:
+      case LEX_LITERAL:
+      case LEX_TEMPLATE:
+      case LEX_BIGINT:
+        return value;
+      case '[': return this.parseArray(bindId);
+      case '{': return this.parseObject(bindId);
+      case LEX_BIND: return this.parseBind(value);
+      case LEX_ID: {
+        if (lexer.peek('(')) {
+          lexer.shift('(');
+          return this.parseConstruction(value, bindId);
+        }
+        const [, text] = lexer.shift(LEX_TEMPLATE);
+        return this.construct(value, null, text);
+      }
+    }
+    throw new SyntaxError(`Expected value but got '${value}'`);
+  }
 
-	function parseValue() {
-		var t = text;
-		switch (token) {
-			case LEX_NUM:
-				nextToken();
-				return eval(t);
-			case LEX_STR:
-				nextToken();
-				return eval(t);
-			case LEX_STR2:
-				nextToken();
-				return t.substr(1, t.length - 2).replace(/``/g, '`');
-			case LEX_OBRACKET:
-				nextToken();
-				return parseArray([]);
-			case LEX_OBRACE:
-				nextToken();
-				return parseObject({});
-			case LEX_BIND:
-				return parseBind();
-			case LEX_CONS:
-				nextToken();
-				return eval(t);
-			case LEX_ID:
-				nextToken();
-				shift(LEX_OPAREN);
-				return parseConstruction(t, null);
-			default:
-				error("Expected value but got `"+ t +"` (token="+ token +")!");
-		}
-	}
+  /** Parse an array read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
+  parseArray(bindId) {
+    const array = [];
+    if (bindId) {
+      this.bindings.set(bindId, array);
+    }
+    this.parseElements(array, ']');
+    return array;
+  }
 
-	function parseArray(array) {
-		if (token !== LEX_CBRACKET) {
-			parseElements(array);
-		}
-		shift(LEX_CBRACKET);
-		return array;
-	}
+  /** Parse an object literal read from the lexer.
+   *
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
+  parseObject(bindId) {
+    const obj = {};
+    if (bindId) {
+      this.bindings.set(bindId, obj);
+    }
+    this.parseElements(obj, '}');
+    return obj;
+  }
 
-	function parseObject(obj) {
-		if (token !== LEX_CBRACE) {
-			parseElements(obj);
-		}
-		shift(LEX_CBRACE);
-		return obj;
-	}
+  /** Parse a construction read from the lexer.
+   *
+   * @param {string} cons - Construction's identifier.
+   * @param {string} bindId - Bind id for the value.
+   * @returns {any}
+  */
+  parseConstruction(cons, bindId) {
+    const obj = this.construct(cons, null, null);
+    if (bindId) {
+      this.bindings.set(bindId, obj);
+    }
+    const args = [];
+    this.parseElements(args, ')');
+    return this.construct(cons, obj, args);
+  }
 
-	function parseElements(obj) {
-		var i = 0,
-			t; 
-		while (true) {
-			t = text;
-			switch (token) {
-				case LEX_CONS:
-					obj[i++] = eval(t);
-					nextToken();
-					break;
-				case LEX_ID:
-					switch (nextToken()) {
-						case LEX_COLON:
-							nextToken();
-							if (t === '__proto__') {
-								_setProto(obj, parseValue()); 
-							} else {
-								obj[t] = parseValue();
-							}
-							break;
-						case LEX_OPAREN:
-							nextToken();
-							obj[i++] = parseConstruction(t, null);
-							break;
-						default:
-							error();
-					}
-					break;
-				case LEX_STR:
-					if (nextToken() === LEX_COLON) {
-						nextToken();
-						if (t === '__proto__') {
-							_setProto(obj, parseValue()); 
-						} else {
-							obj[eval(t)] = parseValue();
-						}
-					} else {
-						obj[i++] = eval(t);
-					}
-					break;
-				case LEX_NUM:
-					obj[i++] = eval(t);
-					nextToken();
-					break;
-				case LEX_BIND: 
-					obj[i++] = parseBind();
-					break;
-				case LEX_STR2:
-				case LEX_OBRACKET:
-				case LEX_OBRACE:
-					obj[i++] = parseValue();
-					break;
-				default:
-					error("Expected element but got `"+ t +"` (token="+ token +", input='"+ input +"')!"); //FIXME
-			}
-			if (token === LEX_COMMA) {
-				nextToken();
-			} else {
-				break;
-			}
-		}
-		return obj;
-	}
+  /** Parse elements for arrays, object literals or construction arguments; read
+   * from the lexer.
+   *
+   * @param {object} obj - Object to add the elements to.
+   * @param {string} end - Token that should end the elements list.
+   * @returns {any}
+  */
+  parseElements(obj, end) {
+    const { lexer } = this;
+    let i = 0;
+    do {
+      if (lexer.peek(end)) {
+        break;
+      }
+      if (lexer.peek(LEX_ID)) {
+        this.parseIdElement(obj, i);
+      } else if (lexer.peek(LEX_LITERAL)) {
+        this.parseLiteralElement(obj, i);
+      } else {
+        obj[i] = this.parseValue();
+      }
+      i += 1;
+    } while (lexer.peek(',') && lexer.shift(','));
+    lexer.shift(end);
+    return obj;
+  }
 
-	function parseBind() {
-		var id = text;
-		nextToken();
-		if (token === LEX_EQUAL) {
-			if (bindings.hasOwnProperty(id)) {
-				error("Binding "+ id +" cannot be reassigned");
-			}
-			nextToken();
-			switch (token) {
-				case LEX_OBRACKET:
-					nextToken();
-					return parseArray(bindings[id] = []);
-				case LEX_OBRACE:
-					nextToken();
-					return parseObject(bindings[id] = {});
-				case LEX_ID:
-					var cons = text;
-					nextToken();
-					shift(LEX_OPAREN);
-					return bindings[id] = parseConstruction(cons, bindings[id] = sermat.construct(cons, null, null));
-				default:
-					return bindings[id] = parseValue();
-			}
-		} else if (bindings.hasOwnProperty(id)) {
-			return bindings[id];
-		} else {
-			var rec = sermat.record(id.substr(1));
-			if (rec) {
-				return rec.type;
-			} else {
-				throw new ReferenceError('Sermat.mat: '+ id +' is not defined!');
-			}
-		}
-	}
+  /** */
+  parseIdElement(obj, i) {
+    const { lexer } = this;
+    const [, value] = lexer.shift(LEX_ID);
+    if (lexer.peek(':')) {
+      lexer.shift(':');
+      obj[value] = this.parseValue();
+    } else if (lexer.peek('(')) {
+      lexer.shift('(');
+      obj[i] = this.parseConstruction(value);
+    } else {
+      throw new SyntaxError(`Unexpected "${value}" at ${this.offset - value.length}!`);
+    }
+  }
 
-	function parseConstruction(cons, obj) {
-		var args = [];
-		if (token !== LEX_CPAREN) {
-			parseElements(args);
-		}
-		shift(LEX_CPAREN);
-		return sermat.construct(cons, obj, args);
-	}
-	
-	// parseStart
-	nextToken();
-	var result = parseValue();
-	shift(LEX_EOI);
-	return result;
-} // materialize
+  /** */
+  parseLiteralElement(obj, i) {
+    const { lexer } = this;
+    const [, value] = lexer.shift(LEX_LITERAL);
+    if (lexer.peek(':')) {
+      lexer.shift(':');
+      obj[value] = this.parseValue();
+    } else {
+      obj[i] = value;
+    }
+  }
+
+  /** */
+  parseBind(id) {
+    const { lexer } = this;
+    const { bindings } = this;
+    if (!lexer.peek('=')) {
+      if (bindings.has(id)) {
+        return bindings.get(id);
+      }
+      throw new ReferenceError(`Binding ${id} is not defined!`);
+    }
+    lexer.shift('=');
+    if (bindings.has(id)) {
+      throw new ReferenceError(`Binding ${id} cannot be reassigned!`);
+    }
+    const value = this.parseValue(id);
+    bindings.set(id, value);
+    return value;
+  }
+} // class Materializer
