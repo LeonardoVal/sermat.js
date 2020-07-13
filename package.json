@@ -6,7 +6,7 @@
     "marshalling",
     "serialization"
   ],
-  "version": "0.0.10",
+  "version": "0.1.0",
   "author": {
     "name": "Leonardo Val",
     "email": "leonardo.val@creatartis.com"
@@ -18,9 +18,9 @@
     "type": "git",
     "url": "http://github.com/LeonardoVal/sermat.js"
   },
-  "main": "build/sermat-node-min.js",
+  "main": "dist/sermat.js",
   "files": [
-    "build",
+    "dist",
     "LICENSE.md"
   ],
   "dependencies": {},
@@ -28,7 +28,10 @@
     "@creatartis/creatartis-build": "^0.1.0"
   },
   "scripts": {
-    "test": "gulp test"
+    "build": "gulp default",
+    "test": "gulp test",
+    "publish:verdaccio": "npm run build && npm publish --registry http://localhost:4873",
+    "republish:verdaccio": "npm unpublish --registry http://localhost:4873 --force && npm run publish:verdaccio"
   },
   "babel": {
     "presets": [
