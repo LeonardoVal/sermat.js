@@ -1,5 +1,4 @@
-﻿/* eslint-disable camelcase, max-classes-per-file */
-/* global describe, it, expect, xit */
+/* eslint-disable camelcase, max-classes-per-file */
 import { Sermat } from '../../src/index';
 import { addMatchers } from '../jest-utils';
 

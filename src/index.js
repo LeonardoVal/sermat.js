@@ -117,7 +117,7 @@ export class Sermat {
   }
 
   /** Removes the construction for one or more types from the registry.
-   * 
+   *
    * @param {...string|class} types
    * @returns {object[]}
   */

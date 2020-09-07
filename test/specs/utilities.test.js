@@ -1,5 +1,4 @@
-﻿/* eslint-disable max-classes-per-file */
-/* global describe, it, xit, expect */
+/* eslint-disable max-classes-per-file */
 import { Sermat } from '../../src/index';
 
 describe('Sermat utilities', () => {

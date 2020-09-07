@@ -1,4 +1,4 @@
-﻿/* global describe, it, xit, expect, fail */
+/* eslint-disable no-new-wrappers */
 import { Sermat } from '../../src/index';
 
 describe('Random tests', () => {
@@ -87,7 +87,7 @@ describe('Random tests', () => {
       case 1: return new Number(random() * (2 ** 20));
       case 2: return new String(randomString(10 * Math.max(1, max), 32, 127));
       default: return new Error(randomIdentifier(randomInt(15)));
-    }    
+    }
   }
 
   function randomValue(min, max, loopChance) {

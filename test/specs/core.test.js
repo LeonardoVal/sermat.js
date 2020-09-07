@@ -1,4 +1,3 @@
-﻿/* global describe, it, expect, fail */
 import { Sermat } from '../../src/index';
 import { addMatchers } from '../jest-utils';
 
@@ -91,7 +90,7 @@ describe('Sermat', () => {
       }).forEach(([text, literal]) => {
         expect(literal).toMaterializeAs(text, sermat);
       });
-      //TODO Check fails, like '"\\"'.
+      // TODO Check fails, like '"\\"'.
     });
   });
 
@@ -158,7 +157,7 @@ describe('Sermat', () => {
       }).forEach(([text, literal]) => {
         expect(literal).toMaterializeAs(text, sermat);
       });
-      //TODO Check fails, like '`\\`'.
+      // TODO Check fails, like '`\\`'.
     });
   });
 

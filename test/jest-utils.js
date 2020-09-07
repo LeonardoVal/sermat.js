@@ -5,7 +5,7 @@ const succeeds = (f) => {
   } catch {
     return false;
   }
-}; 
+};
 
 // eslint-disable-next-line import/prefer-default-export
 export function addMatchers(expect) {
@@ -52,4 +52,4 @@ export function addMatchers(expect) {
       };
     },
   });
-};
+}
