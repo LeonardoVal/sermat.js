@@ -6,7 +6,7 @@
     "marshalling",
     "serialization"
   ],
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Leonardo Val",
     "email": "leonardo.val@creatartis.com"
@@ -25,43 +25,20 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "@creatartis/creatartis-build": "^0.1.0"
+    "@creatartis/creatartis-build": "^0.2.1"
   },
   "scripts": {
-    "build": "gulp default",
-    "test": "gulp test",
-    "publish:verdaccio": "npm run build && npm publish --registry http://localhost:4873",
-    "republish:verdaccio": "npm unpublish --registry http://localhost:4873 --force && npm run publish:verdaccio"
+    "lint": "npx creatartis-build lint",
+    "build": "npx creatartis-build lint build test",
+    "test": "npx creatartis-build test",
+    "publish:verdaccio": "npm run build && npx creatartis-build publish:verdaccio",
+    "republish:verdaccio": "npm run build && npx creatartis-build republish:verdaccio"
   },
   "babel": {
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "targets": {
-            "node": "current"
-          }
-        }
-      ]
-    ],
-    "plugins": [
-      "@babel/plugin-proposal-class-properties",
-      "@babel/plugin-syntax-bigint"
-    ]
+    "extends": "./node_modules/@creatartis/creatartis-build/dist/babel-config.js"
   },
   "eslintConfig": {
-    "env": {
-      "browser": true,
-      "es6": true
-    },
-    "extends": [
-      "airbnb-base"
-    ],
-    "globals": {},
-    "parser": "babel-eslint",
-    "parserOptions": {
-      "ecmaVersion": 2018
-    },
+    "extends": "./node_modules/@creatartis/creatartis-build/dist/eslint-config.js",
     "rules": {
       "no-useless-constructor": 0,
       "class-methods-use-this": 0,
@@ -74,20 +51,7 @@
     }
   },
   "eslintIgnore": [
-    "dist/**/*.js"
-  ],
-  "jest": {
-    "setupFilesAfterEnv": [
-      "./node_modules/@creatartis/creatartis-build/dist/jest-setup.js"
-    ],
-    "testPathIgnorePatterns": [
-      "node_modules/",
-      "src/",
-      "dist/"
-    ],
-    "transform": {
-      "\\.jsx?$": "babel-jest"
-    },
-    "verbose": true
-  }
+    "dist/",
+    "node_modules/"
+  ]
 }
