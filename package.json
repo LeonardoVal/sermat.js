@@ -18,27 +18,25 @@
     "type": "git",
     "url": "http://github.com/LeonardoVal/sermat.js"
   },
-  "main": "dist/sermat.js",
-  "files": [
-    "dist",
-    "LICENSE.md"
-  ],
+  "main": "sermat.js",
+  "module": "index.js",
   "dependencies": {},
   "devDependencies": {
-    "@creatartis/creatartis-build": "^0.2.1"
+    "@creatartis/creatartis-build": "0.2.4-beta"
   },
   "scripts": {
     "lint": "npx creatartis-build lint",
     "build": "npx creatartis-build lint build test",
-    "test": "npx creatartis-build test",
-    "publish:verdaccio": "npm run build && npx creatartis-build publish:verdaccio",
-    "republish:verdaccio": "npm run build && npx creatartis-build republish:verdaccio"
+    "test": "npx creatartis-build lint test",
+    "release": "npm run build && npx creatartis-build release",
+    "release:verdaccio": "npm run build && npx creatartis-build release:verdaccio",
+    "rerelease:verdaccio": "npm run build && npx creatartis-build rerelease:verdaccio"
   },
   "babel": {
-    "extends": "./node_modules/@creatartis/creatartis-build/dist/babel-config.js"
+    "extends": "./node_modules/@creatartis/creatartis-build/babel-config.js"
   },
   "eslintConfig": {
-    "extends": "./node_modules/@creatartis/creatartis-build/dist/eslint-config.js",
+    "extends": "./node_modules/@creatartis/creatartis-build/eslint-config.js",
     "rules": {
       "no-useless-constructor": 0,
       "class-methods-use-this": 0,
