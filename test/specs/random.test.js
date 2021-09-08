@@ -1,4 +1,4 @@
-/* eslint-disable no-new-wrappers */
+/* eslint-disable no-new-wrappers, no-unused-vars */
 import { Sermat } from '../../src/index';
 
 describe('Random tests', () => {

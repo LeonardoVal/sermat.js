@@ -40,11 +40,11 @@ describe('Sermat registry', () => {
   const rect1 = new Rect2D(new Point2D(1, 2), new Point2D(3, 4));
 
   it('with include().', () => {
-    const sermat = new Sermat();
-    expect(sermat.ser.bind(sermat, rect1)).toThrow();
-    expect(sermat.ser.bind(sermat, rect1.topLeft)).toThrow();
+    const sermat = new Sermat({ autoInclude: false });
+    expect(() => sermat.ser(rect1)).toThrow();
+    expect(() => sermat.ser(rect1.topLeft)).toThrow();
     sermat.include(Point2D);
-    expect(sermat.ser.bind(sermat, rect1)).toThrow();
+    expect(() => sermat.ser(rect1)).toThrow();
     expect(sermat.ser(rect1.topLeft)).toBe('Point2D(1,2)');
     sermat.include(Rect2D);
     expect(sermat.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
@@ -53,8 +53,6 @@ describe('Sermat registry', () => {
 
   xit('with include().', () => {
     const sermat1 = new Sermat();
-    Point2D.__SERMAT__ = Point2D__SERMAT__();
-    Rect2D.__SERMAT__ = Rect2D__SERMAT__();
     sermat1.include(Point2D);
     expect(sermat1.ser(rect1.topLeft)).toBe('Point2D(1,2)');
     expect(sermat1.ser(rect1.bottomRight)).toBe('Point2D(3,4)');
@@ -62,26 +60,18 @@ describe('Sermat registry', () => {
     expect(sermat1.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
 
     const sermat2 = new Sermat();
-    Point2D.__SERMAT__ = Point2D__SERMAT__();
-    Rect2D.__SERMAT__ = Rect2D__SERMAT__({ include: [Point2D] });
     sermat2.include(Rect2D);
     expect(sermat2.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
 
     const sermat3 = new Sermat({ autoInclude: false });
-    Point2D.__SERMAT__ = Point2D__SERMAT__();
-    Rect2D.__SERMAT__ = Rect2D__SERMAT__();
     sermat3.include(Rect2D);
-    expect(sermat3.ser.bind(sermat3, rect1)).toThrow();
+    expect(() => sermat3.ser(rect1)).toThrow();
 
     const sermat4 = new Sermat({ autoInclude: false });
-    Point2D.__SERMAT__ = Point2D__SERMAT__();
-    Rect2D.__SERMAT__ = Rect2D__SERMAT__({ include: [Point2D] });
     sermat4.include({ __SERMAT__: { include: [Rect2D] } });
     expect(sermat4.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
 
     const sermat5 = new Sermat({ autoInclude: true });
-    Point2D.__SERMAT__ = Point2D__SERMAT__();
-    Rect2D.__SERMAT__ = Rect2D__SERMAT__();
     expect(sermat5.ser(rect1)).toBe('Rect2D(Point2D(1,2),Point2D(3,4))');
   });
 
@@ -92,7 +82,7 @@ describe('Sermat registry', () => {
     expect(sermat1.ser(new Date())).toBeTruthy();
     expect(sermat1.exclude(Date)).toEqual([dateConstruction]);
     expect(sermat1.construction(Date)).not.toBeDefined();
-    expect(sermat1.ser.bind(sermat1, new Date())).toThrow();
+    expect(() => sermat1.ser(new Date())).toThrow();
 
     const sermat2 = new Sermat();
     dateConstruction = sermat2.construction(Date);
@@ -101,7 +91,7 @@ describe('Sermat registry', () => {
     expect(regexpConstruction).toBeTruthy();
     expect(sermat2.ser([new Date(), /.*/g])).toBeTruthy();
     expect(sermat2.exclude(Date, RegExp)).toEqual([dateConstruction, regexpConstruction]);
-    expect(sermat2.ser.bind(sermat2, [new Date(), /.*/g])).toThrow();
+    expect(() => sermat2.ser([new Date(), /.*/g])).toThrow();
 
     const sermat3 = new Sermat();
     dateConstruction = sermat3.construction(Date);

@@ -180,7 +180,7 @@ describe('Sermat', () => {
       [Sermat, new Sermat()].forEach((sermat) => {
         try {
           sermat.mat(wrongInput);
-          fail(`Parsing \`${wrongInput}\` should have failed!`);
+          throw new Error(`Parsing \`${wrongInput}\` should have failed!`);
         } catch (err) {
           // Do nothing. This is expected.
         }
