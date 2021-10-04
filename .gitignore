@@ -13,5 +13,6 @@ tests/require-config.js
 docs/docker/
 docs/jsdoc/
 docs/jsdoc-conf.json
+test/specs/coverage/
 tools/
 npm-debug.log

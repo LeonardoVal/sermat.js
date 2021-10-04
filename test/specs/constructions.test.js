@@ -1,4 +1,3 @@
-﻿/* global describe, it, expect */
 /* eslint-disable no-new-wrappers, max-classes-per-file */
 import { Sermat } from '../../src/index';
 import { addMatchers } from '../jest-utils';

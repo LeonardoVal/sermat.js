@@ -81,6 +81,7 @@ export class Sermat {
   /**
   */
   include(...types) {
+    const { registry } = this;
     for (const type of types) {
       if (type[SERMAT_SYMBOL]) {
         if (typeof type === 'function') {
@@ -88,8 +89,8 @@ export class Sermat {
           const cons = construction({
             type, identifier, serializer, materializer,
           });
-          this.registry.set(cons.identifier, cons);
-          this.registry.set(type, cons);
+          registry.set(cons.identifier, cons);
+          registry.set(type, cons);
         }
         const { include } = type[SERMAT_SYMBOL];
         if (Array.isArray(include)) {
@@ -99,8 +100,8 @@ export class Sermat {
       if (typeof type === 'string') {
         const cons = CONSTRUCTIONS.get(type);
         if (cons) {
-          this.registry.set(cons.identifier, cons);
-          this.registry.set(cons.type, cons);
+          registry.set(cons.identifier, cons);
+          registry.set(cons.type, cons);
         }
       }
     }
@@ -112,12 +113,20 @@ export class Sermat {
    * @returns {object}
    */
   construction(type) {
-    const cons = this.registry.get(type);
+    const { registry, modifiers: { autoInclude } } = this;
+    if (!registry.has(type)) {
+      if (autoInclude) {
+        this.include(type);
+      } else {
+        return null;
+      }
+    }
+    const cons = registry.get(type);
     return cons;
   }
 
   /** Removes the construction for one or more types from the registry.
-   * 
+   *
    * @param {...string|class} types
    * @returns {object[]}
   */
