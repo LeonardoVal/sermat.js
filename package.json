@@ -22,7 +22,7 @@
   "module": "index.js",
   "dependencies": {},
   "devDependencies": {
-    "@creatartis/creatartis-build": "0.2.4-beta"
+    "@creatartis/creatartis-build": "0.2.5"
   },
   "scripts": {
     "lint": "npx creatartis-build lint",
